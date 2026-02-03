@@ -8,28 +8,25 @@ from typing import Dict
 from pathlib import Path
 
 
-# 환경별 URL 설정
+# 환경별 URL 설정 (mweb)
 _URLS = {
     "dev": {
-        "base": "https://www-dev.gmarket.co.kr",
-        "item": "https://item-dev.gmarket.co.kr",
-        "cart": "https://cart-dev.gmarket.co.kr",
+        "base": "https://m-dev.gmarket.co.kr",
+        "cart": "https://cart-dev.gmarket.co.kr/ko/m/cart",
         "checkout": "https://checkout-dev.gmarket.co.kr",
-        "my": "https://my-dev.gmarket.co.kr/ko/pc/main"
+        "my": "https://my-dev.gmarket.co.kr/ko/mo/Main"
     },
     "stg": {
-        "base": "https://www-stg.gmarket.co.kr",
-        "item": "https://item-stg.gmarket.co.kr",
-        "cart": "https://cart-av.gmarket.co.kr",
+        "base": "https://m-stg.gmarket.co.kr",
+        "cart": "https://cart-av.gmarket.co.kr/ko/m/cart",
         "checkout": "https://checkout-av.gmarket.co.kr",
-        "my": "https://my-av.gmarket.co.kr/ko/pc/main"
+        "my": "https://my-av.gmarket.co.kr/ko/mo/Main"
     },
     "prod": {
-        "base": "https://www.gmarket.co.kr",
-        "item": "https://item.gmarket.co.kr",
-        "cart": "https://cart.gmarket.co.kr",
+        "base": "https://m.gmarket.co.kr",
+        "cart": "https://cart.gmarket.co.kr/ko/m/cart",
         "checkout": "https://checkout.gmarket.co.kr",
-        "my": "https://my.gmarket.co.kr/ko/pc/main"
+        "my": "https://my.gmarket.co.kr/ko/mo/Main"
     }
 }
 
@@ -69,11 +66,11 @@ def _get_base_url() -> str:
 
 
 def _get_item_base_url() -> str:
-    """상품 페이지 기본 URL 반환"""
+    """상품 페이지 기본 URL 반환 (mweb: base + /vi/product/)"""
     global _env_urls
     if _env_urls is None:
         _env_urls = _get_environment_urls()
-    return _env_urls['item']
+    return _env_urls.get('item', _env_urls['base'])
 
 
 def _get_cart_base_url() -> str:
@@ -89,7 +86,7 @@ def _get_checkout_base_url() -> str:
     global _env_urls
     if _env_urls is None:
         _env_urls = _get_environment_urls()
-    return _env_urls['checkout']
+    return _env_urls.get('checkout', _env_urls['base'])
 
 
 def _get_my_url() -> str:
@@ -156,7 +153,7 @@ def search_url(keyword: str, spm: str = None) -> str:
 
 
 def product_url(goodscode: str, spm: str = None) -> str:
-    """상품 상세 페이지 URL
+    """상품 상세 페이지 URL (mweb: base/vi/product/{goodscode})
     
     Args:
         goodscode: 상품 코드
@@ -165,30 +162,25 @@ def product_url(goodscode: str, spm: str = None) -> str:
     Returns:
         상품 상세 페이지 URL
     """
-    base = f"{item_base_url()}/Item"
-    params = []
-    
+    base = f"{base_url()}/vi/product/{goodscode}"
     if spm:
-        params.append(f"spm={spm}")
-    params.append(f"goodscode={goodscode}")
-    
-    return f"{base}?{'&'.join(params)}"
+        return f"{base}?spm={spm}"
+    return base
 
 
 def cart_url(spm: str = None) -> str:
-    """장바구니 URL 반환
+    """장바구니 URL 반환 (mweb: 전체 URL)
     
     Args:
         spm: SPM 파라미터 (선택적)
     
     Returns:
-        장바구니 URL (예: https://cart.gmarket.co.kr/ko/pc/cart/?spm=...#/)
+        장바구니 URL
     """
-    base = f"{cart_base_url()}/ko/pc/cart/"
-    
+    base = cart_base_url()
     if spm:
-        return f"{base}?spm={spm}#/"
-    return f"{base}#/"
+        return f"{base}?spm={spm}" if "?" not in base else f"{base}&spm={spm}"
+    return base
 
 
 def list_url(category_id: str, spm: str = None) -> str:

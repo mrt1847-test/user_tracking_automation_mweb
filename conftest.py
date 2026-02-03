@@ -180,15 +180,30 @@ def browser(pw):
     yield browser
     browser.close()
 # ------------------------
-# :셋: Context fixture (각 시나리오마다 독립적으로 생성)
+# :셋: Context fixture (각 시나리오마다 독립적으로 생성) — 모바일 환경
 # ------------------------
+# 모바일 뷰포트 (iPhone 12/13 기준)
+MOBILE_VIEWPORT = {"width": 390, "height": 844}
+MOBILE_USER_AGENT = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+)
+
+
 @pytest.fixture(scope="function")
 def context(browser, ensure_login_state):
     """
-    브라우저 컨텍스트 fixture
+    브라우저 컨텍스트 fixture (모바일 뷰포트)
     각 시나리오마다 독립적으로 생성되고 종료 시 정리됩니다.
     """
-    ctx = browser.new_context(storage_state=ensure_login_state)
+    ctx = browser.new_context(
+        storage_state=ensure_login_state,
+        viewport=MOBILE_VIEWPORT,
+        user_agent=MOBILE_USER_AGENT,
+        is_mobile=True,
+        has_touch=True,
+        device_scale_factor=1,
+    )
     yield ctx
     ctx.close()
 # ------------------------
@@ -214,18 +229,24 @@ def is_state_valid(state_path: str) -> bool:
 # :넷: 로그인 수행 + state.json 저장
 # ------------------------
 def create_login_state(pw):
-    """로그인 수행 후 state.json 저장"""
+    """로그인 수행 후 state.json 저장 (모바일 환경)"""
     from utils.urls import base_url
     from utils.credentials import get_credentials, MemberType
     
-    print("[INFO] 로그인 절차 시작")
+    print("[INFO] 로그인 절차 시작 (모바일)")
     # 계정 정보 가져오기 (일반회원 사용)
     credentials = get_credentials(MemberType.NORMAL)
     username = credentials["username"]
     password = credentials["password"]
     
     browser = pw.chromium.launch(headless=False)  # 화면 확인용
-    context = browser.new_context()
+    context = browser.new_context(
+        viewport=MOBILE_VIEWPORT,
+        user_agent=MOBILE_USER_AGENT,
+        is_mobile=True,
+        has_touch=True,
+        device_scale_factor=1,
+    )
     page = context.new_page()
     page.goto(base_url())
     # 로그인 페이지 이동 및 입력
