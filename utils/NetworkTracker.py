@@ -136,8 +136,8 @@ class NetworkTracker:
         if 'exposure' in url_lower:
             return 'Exposure'
         
-        # 기본 Click (URL에 click 포함하지만 위 패턴에 매칭되지 않음)
-        if 'click' in url_lower:
+        # 기본 Click/Tap (URL에 click 또는 tap 포함, 위 패턴에 매칭되지 않음)
+        if 'click' in url_lower or 'tap' in url_lower:
             return 'Click'
         
         return 'Unknown'
@@ -718,6 +718,10 @@ class NetworkTracker:
             value = payload['x_object_id']
             if value:
                 return str(value)
+        
+        # 1.5. payload 최상위에서 _p_prod 확인 (PDP PV 등 m.gif 쿼리스트링 파싱 결과)
+        if '_p_prod' in payload and payload['_p_prod']:
+            return str(payload['_p_prod'])
         
         # 2. payload에서 직접 확인 (다양한 키 이름 시도)
         for key in _GOODSCODE_PARAM_KEYS:

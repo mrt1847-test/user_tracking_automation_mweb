@@ -375,7 +375,7 @@ class SearchPage(BasePage):
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        return parent_locator.locator("div.box__item-container > div.box__image > a").first
+        return parent_locator.locator("div.box__itemcard  a").first
     
     def get_product_in_module_type2(self, parent_locator: Locator) -> Locator:
         """
@@ -420,10 +420,10 @@ class SearchPage(BasePage):
         Args:
             goodscode: 상품 번호
         """
-        module_locator.locator(f'.button__cart[data-montelena-goodscode="{goodscode}"]').nth(0).click()
-        logger.debug(f"장바구니 담기 클릭: {goodscode}")
+        module_locator.locator(f'.button__cart[data-montelena-goodscode="{goodscode}"]').nth(0).tap(timeout=5000)
+        logger.debug(f"장바구니 담기 탭: {goodscode}")
         try:
-            self.page.locator('strong.text__button:has-text("계속 쇼핑")').click()
+            self.page.locator('strong.text__button:has-text("계속 쇼핑")').tap(timeout=5000)
         except Exception as e:
             logger.debug(f"계속 쇼핑 클릭 실패: {e}")
         logger.debug(f"계속 쇼핑 클릭 완료: {goodscode}")
@@ -455,75 +455,31 @@ class SearchPage(BasePage):
     
     def click_product_and_wait_new_page(self, product_locator: Locator) -> Page:
         """
-        상품 클릭하고 새 탭 대기 (새 탭 열림)
+        상품 클릭 후 같은 페이지 내에서 이동 대기 (같은 탭에서 상품 페이지로 이동)
         
         Args:
             product_locator: 상품 Locator 객체
             
         Returns:
-            새 탭의 Page 객체
+            이동 완료된 현재 Page 객체 (self.page)
         """
-        logger.debug("상품 클릭 및 새 탭 대기")
+        logger.debug("상품 클릭 및 같은 페이지 내 이동 대기 (모바일: tap 사용)")
 
-        time.sleep(3)
-        
-        # 일반 클릭 시도
-        try:
-            with self.page.context.expect_page(timeout=5000) as new_page_info:
-                product_locator.click(force=True, timeout=3000)
-            
-            new_page = new_page_info.value
-            logger.debug(f"새 탭 생성됨: {new_page.url}")
-        except Exception as e:
-            logger.warning(f"일반 클릭 실패, 팝업 닫기 후 재시도: {e}")
-            # 팝업이 있을 수 있으므로 닫기 버튼 클릭 후 다시 시도
-            try:
-                popup_close_button = self.page.locator(".button__popup-close")
-                if popup_close_button.count() > 0:
-                    try:
-                        popup_close_button.first.click(force=True, timeout=2000)
-                    except Exception as e:
-                        logger.warning(f"팝업 닫기 버튼 클릭 실패: {e}")
+        with self.page.expect_navigation(timeout=15000):
+            product_locator.tap(timeout=5000)
+        logger.debug("상품 탭 후 페이지 이동 완료")
 
-                    logger.debug("팝업 닫기 버튼 클릭 완료")
-                    # 잠시 대기 (팝업이 닫히는 시간)
-                    time.sleep(2)
-            
-                # 다시 일반 클릭 시도
-                with self.page.context.expect_page(timeout=10000) as new_page_info:
-                    product_locator.click(force=True, timeout=3000)
-                
-                new_page = new_page_info.value
-                logger.debug(f"팝업 닫기 후 새 탭 생성됨: {new_page.url}")
-            except Exception as e2:
-                logger.error(f"팝업 닫기 후 클릭도 실패: {e2}")
-                raise Exception(f"클릭 실패 (일반 클릭: {e}, 팝업 닫기 후 재시도: {e2})")
-        # 새 탭을 포커스로 가져오기 (제어 가능하도록)
-        new_page.bring_to_front()
-        logger.debug("새 탭을 포커스로 가져옴")
-        
-        # 새 탭이 실제로 로드되고 제어 가능한 상태가 될 때까지 대기
-        # 1. domcontentloaded: DOM이 로드되면 완료 (가장 빠름)
+        # 페이지 로드 완료 대기
         try:
-            new_page.wait_for_load_state("domcontentloaded", timeout=30000)
-            logger.debug("새 탭 DOM 로드 완료")
+            self.page.wait_for_load_state("domcontentloaded", timeout=30000)
+            logger.debug("페이지 DOM 로드 완료")
         except Exception as e:
             logger.warning(f"domcontentloaded 대기 실패: {e}")
             raise
-        
-        # 2. URL이 실제로 변경되었는지 확인 (about:blank가 아닌지)
-        max_retries = 5
-        for i in range(max_retries):
-            current_url = new_page.url
-            if current_url and current_url != "about:blank":
-                logger.debug(f"새 탭 URL 확인됨: {current_url}")
-                break
-            if i < max_retries - 1:
-                new_page.wait_for_timeout(500)  # 0.5초 대기
-            else:
-                logger.warning(f"새 탭 URL이 about:blank 상태입니다: {current_url}")
-        
-        return new_page
+
+        current_url = self.page.url
+        logger.debug(f"이동 완료 URL: {current_url}")
+        return self.page
     
     def verify_product_code_in_url(self, url: str, goodscode: str) -> None:
         """

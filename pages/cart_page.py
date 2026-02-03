@@ -54,9 +54,9 @@ class CartPage(BasePage):
         buy_button.scroll_into_view_if_needed(timeout=timeout)
         logger.debug("장바구니 버튼이 화면에 보이도록 스크롤 완료")
         
-        # 버튼 클릭
-        buy_button.click(timeout=timeout)
-        logger.info("장바구니 버튼 클릭 완료")
+        # 버튼 탭 (모바일: 터치 이벤트로 트래킹 인식)
+        buy_button.tap(timeout=timeout)
+        logger.info("장바구니 버튼 탭 완료")
 
     def select_group_product(self, n: int, timeout: int = 10000) -> None:
         """
@@ -243,19 +243,19 @@ class CartPage(BasePage):
 
     def click_product_and_wait_pdp_pv(self, product_locator: Locator) -> None:
         """
-        상품 클릭
+        상품 탭 (모바일: 터치 이벤트로 product.click.event 트래킹 인식)
         """
-        logger.debug(f"상품 클릭: {product_locator}")
-        product_locator.click()
-        logger.info("상품 클릭 완료")
+        logger.debug(f"상품 탭: {product_locator}")
+        product_locator.tap(timeout=5000)
+        logger.info("상품 탭 완료")
 
     def click_cart_button_in_module(self, goodscode: str) -> None:
         """
-        모듈 내 장바구니 버튼 클릭
+        모듈 내 장바구니 버튼 탭 (모바일: 터치 이벤트로 product.atc.click 트래킹 인식)
         """
-        logger.debug(f"모듈 내 장바구니 버튼 클릭: {goodscode}")
-        self.page.locator(f'.button__cart[data-montelena-goodscode="{goodscode}"]').nth(0).click()
-        logger.info("모듈 내 장바구니 버튼 클릭 완료")
+        logger.debug(f"모듈 내 장바구니 버튼 탭: {goodscode}")
+        self.page.locator(f'.button__cart[data-montelena-goodscode="{goodscode}"]').nth(0).tap(timeout=5000)
+        logger.info("모듈 내 장바구니 버튼 탭 완료")
 
     def check_cart_added(self, goodscode: str, timeout: int = 10000) -> None:
         """

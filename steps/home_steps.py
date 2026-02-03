@@ -81,6 +81,7 @@ def given_gmarket_home_page_accessed(browser_session, request, bdd_context):
     
     home_page = HomePage(browser_session.page)
     home_page.navigate()
+    home_page.close_popup()
     logger.info("G마켓 홈 페이지 접속 완료")
 
 

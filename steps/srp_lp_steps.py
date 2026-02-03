@@ -22,8 +22,8 @@ def when_user_searches_keyword(browser_session, keyword, bdd_context):
     try:
         logger.info(f"검색 시작: keyword={keyword}")
         home_page = HomePage(browser_session.page)
-        home_page.fill_search_input(keyword)
-        home_page.click_search_button()
+        home_page.close_popup()
+        home_page.search_product(keyword)
         home_page.wait_for_search_results()
         bdd_context.store['keyword'] = keyword
         logger.info(f"검색 완료: keyword={keyword}")
@@ -87,7 +87,8 @@ def module_exists_in_search_results(browser_session, module_title, request, bdd_
     """
     try:
         search_page = SearchPage(browser_session.page)
-        
+
+        search_page.close_popup()
         # 모듈 찾기
         module = search_page.get_module_by_title(module_title)
         
@@ -219,7 +220,7 @@ def user_confirms_and_clicks_product_in_module(browser_session, module_title, bd
         ad_check = search_page.check_ad_item_in_srp_lp_module(module_title)
         
         # 모듈 내 상품 찾기
-        parent = search_page.get_module_parent(module, 2)
+        parent = search_page.get_module_parent(module, 3)
         product = search_page.get_product_in_module(parent)
         search_page.scroll_product_into_view(product)
         

@@ -249,6 +249,12 @@ def create_login_state(pw):
     )
     page = context.new_page()
     page.goto(base_url())
+    #팝업 닫기
+    try:
+        page.locator(".button__popup-close[aria-label='레이어 닫기']").click()
+    except:
+        pass
+
     # 로그인 페이지 이동 및 입력
     page.click("text=로그인")
     page.fill("#typeMemberInputId", username)

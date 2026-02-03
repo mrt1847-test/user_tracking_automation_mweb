@@ -582,3 +582,14 @@ class BasePage:
         """
         logger.debug(f"페이지에서 spmc로 모듈 찾기: {module_spmc}")
         return self.page.locator(f".module-exp-spm-c[data-spm='{module_spmc}']")
+
+    def close_popup(self):
+        """
+        팝업 닫기
+        """
+        logger.debug("팝업 닫기")
+        try:
+            self.page.locator(".button__popup-close[aria-label='레이어 닫기']").click(force=True, timeout=2000)
+        except:
+            pass
+        time.sleep(1)

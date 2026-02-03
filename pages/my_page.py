@@ -75,8 +75,8 @@ class MyPage(BasePage):
         """
         주문내역에서 상품코드로 담기버튼 클릭
         """
-        logger.debug(f"주문내역에서 상품코드로 담기버튼 클릭: {goodscode}")
-        self.page.locator(f".button__cart[data-montelena-goodscode='{goodscode}']").click()
+        logger.debug(f"주문내역에서 상품코드로 담기버튼 탭: {goodscode}")
+        self.page.locator(f".button__cart[data-montelena-goodscode='{goodscode}']").tap(timeout=5000)
 
     def atc_alert_close(self):
         """
@@ -89,10 +89,10 @@ class MyPage(BasePage):
         """
         주문내역에서 상품코드로 상품 클릭
         """
-        logger.debug(f"주문내역에서 상품코드로 상품 클릭: {goodscode}")
+        logger.debug(f"주문내역에서 상품코드로 상품 탭: {goodscode}")
         loc = self.page.locator(f"{self._ORDER_ITEM_IMG}[data-montelena-goodscode='{goodscode}']").first
         self._scroll_order_item_into_view(loc)
-        loc.click()
+        loc.tap(timeout=5000)
 
     def click_product_in_order_history_and_wait_new_page(self, goodscode: str) -> Page:
         """
@@ -114,7 +114,7 @@ class MyPage(BasePage):
 
         try:
             with self.page.context.expect_page(timeout=5000) as new_page_info:
-                product_locator.click(force=True, timeout=3000)
+                product_locator.tap(timeout=3000)
 
             new_page = new_page_info.value
             logger.debug(f"새 탭 생성됨: {new_page.url}")
@@ -131,7 +131,7 @@ class MyPage(BasePage):
                     time.sleep(2)
 
                 with self.page.context.expect_page(timeout=10000) as new_page_info:
-                    product_locator.click(force=True, timeout=3000)
+                    product_locator.tap(timeout=3000)
 
                 new_page = new_page_info.value
                 logger.debug(f"팝업 닫기 후 새 탭 생성됨: {new_page.url}")
