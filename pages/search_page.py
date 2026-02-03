@@ -336,45 +336,58 @@ class SearchPage(BasePage):
     # 모듈 및 상품 관련 메서드 (Atomic POM)
     # ============================================
     
-    def get_module_by_title(self, module_title: str) -> Locator:
+    def get_module_by_title(self, module_title: str, timeout: Optional[int] = None) -> Locator:
         """
-        모듈 타이틀로 모듈 요소 찾기
+        모듈 타이틀로 모듈 요소 찾기 (해당 모듈이 보일 때까지 대기)
         
         Args:
             module_title: 모듈 타이틀 텍스트
+            timeout: 대기 시간(ms). None이면 self.timeout 사용
             
         Returns:
             Locator 객체
         """
-        logger.debug(f"모듈 찾기: {module_title}")
+        timeout = timeout or self.timeout
+        logger.debug(f"모듈 찾기 (표시 대기): {module_title}")
+        
+        def wait_and_return(loc: Locator) -> Locator:
+            loc.wait_for(state="visible", timeout=3000)
+            return loc
+        
         if module_title == "오늘의 슈퍼딜":
-            return self.page.get_by_text("오늘의", exact=True)
+            return wait_and_return(self.page.get_by_text("오늘의", exact=True))
         elif module_title == "최상단 클릭아이템":
-            return self.page.get_by_text("보고 오셨어요?").locator("xpath=..")
+            base = self.page.get_by_text("보고 오셨어요?")
+            base.wait_for(state="visible", timeout=timeout)
+            return base.locator("xpath=..")
         elif module_title == "스타배송":
-            return self.page.locator(".image__title[alt='스타배송']").locator("xpath=..")
+            base = self.page.locator("a>img.image[alt='스타배송']")
+            base.wait_for(state="visible", timeout=timeout)
+            return base.locator("xpath=..")
         elif module_title == "4.5 이상":
-            return self.page.locator(".text__title", has_text="이상 만족도 높은 상품이에요")
+            return wait_and_return(self.page.locator(".text__title", has_text="이상 만족도 높은 상품이에요"))
         elif module_title == "백화점 브랜드":
-            return self.page.locator(".text__title", has_text="의 비슷한 인기브랜드에요")
+            return wait_and_return(self.page.locator(".text__title", has_text="의 비슷한 인기브랜드에요"))
         elif module_title == "브랜드 인기상품":
-            return self.page.locator(".text__title", has_text="인기상품")
+            return wait_and_return(self.page.locator(".text__title", has_text="인기상품"))
         elif module_title == "백화점픽":
-            return self.page.locator(".text__title", has_text="요즘 뜨는 백화점 Pick!")        
+            return wait_and_return(self.page.locator(".text__title", has_text="요즘 뜨는 백화점 Pick!"))
         elif module_title == "대체검색어":
-            return self.page.locator(".text__title", has_text="도 보시겠어요")
+            return wait_and_return(self.page.locator(".text_suggest", has_text="도 보시겠어요"))
         elif module_title == "MD's Pick":
-            return self.page.get_by_text("믿고 사는 MD's Pick")
+            return wait_and_return(self.page.get_by_text("믿고 사는 MD's Pick"))
         elif module_title == "장바구니 모듈":
-            return self.page.locator(".text__title", has_text="장바구니")
+            return wait_and_return(self.page.locator("h3.text__title", has_text="장바구니"))
         elif module_title == "카탈로그 모듈":
-            return self.page.locator(".text__title", has_text="판매인기기")
+            return wait_and_return(self.page.locator(".text__title", has_text="판매인기"))
         elif module_title == "0번 구좌":
-            module = self.page.locator(".text__banner", has_text="이 상품을 추천드려요")
-            if module.count() > 0 and module.first.is_visible():
-                return module.first
-            return self.page.locator(".text__user", has_text="위한 추천상품이에요")
-        return self.page.locator(".text__banner", has_text=module_title)
+            banner = self.page.locator(".text__user", has_text="이 상품을 추천드려요")
+            try:
+                banner.first.wait_for(state="visible", timeout=timeout)
+                return banner.first
+            except Exception:
+                return wait_and_return(self.page.locator(".text__user", has_text="위한 추천상품이에요"))
+        return wait_and_return(self.page.locator(".text__banner", has_text=module_title))
 
     def get_product_in_module(self, parent_locator: Locator) -> Locator:
         """
@@ -530,6 +543,9 @@ class SearchPage(BasePage):
         logger.debug(f"SRP/LP 모듈 내 광고상품 노출 확인: {modulel_title}")
 
         MODULE_AD_CHECK = {
+            "0번 구좌": "Y",
+            "장바구니 모듈": "F",
+            "카탈로그 모듈": "N",
             "오늘의 슈퍼딜": "N",
             "오늘의 프라임상품": "Y",
             "인기 상품이에요": "N",
@@ -544,6 +560,7 @@ class SearchPage(BasePage):
             "오늘의 상품이에요": "Y",
             "최상단 클릭아이템": "N",
             "주문내역": "N",
+            "G마켓 인기 상품": "N",
         }
         
         if modulel_title not in MODULE_AD_CHECK:
