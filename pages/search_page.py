@@ -1,3 +1,4 @@
+from re import M
 import time
 import logging
 import json
@@ -358,11 +359,22 @@ class SearchPage(BasePage):
             return self.page.locator(".text__title", has_text="의 비슷한 인기브랜드에요")
         elif module_title == "브랜드 인기상품":
             return self.page.locator(".text__title", has_text="인기상품")
+        elif module_title == "백화점픽":
+            return self.page.locator(".text__title", has_text="요즘 뜨는 백화점 Pick!")        
         elif module_title == "대체검색어":
             return self.page.locator(".text__title", has_text="도 보시겠어요")
         elif module_title == "MD's Pick":
             return self.page.get_by_text("믿고 사는 MD's Pick")
-        return self.page.locator(".text__title", has_text=module_title)
+        elif module_title == "장바구니 모듈":
+            return self.page.locator(".text__title", has_text="장바구니")
+        elif module_title == "카탈로그 모듈":
+            return self.page.locator(".text__title", has_text="판매인기기")
+        elif module_title == "0번 구좌":
+            module = self.page.locator(".text__banner", has_text="이 상품을 추천드려요")
+            if module.count() > 0 and module.first.is_visible():
+                return module.first
+            return self.page.locator(".text__user", has_text="위한 추천상품이에요")
+        return self.page.locator(".text__banner", has_text=module_title)
 
     def get_product_in_module(self, parent_locator: Locator) -> Locator:
         """
