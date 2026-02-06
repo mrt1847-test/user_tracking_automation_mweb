@@ -220,10 +220,21 @@ def main():
     _run_single_module_mode(args)
 
 
+def _load_sheet_config() -> tuple:
+    """config.json에서 구글 시트 관련 설정 로드."""
+    config_path = project_root / 'config.json'
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+    spreadsheet_id = config.get('spreadsheet_id')
+    if not spreadsheet_id:
+        raise RuntimeError("config.json에 'spreadsheet_id'가 설정되어 있지 않습니다.")
+    credentials_path = str(project_root / 'python-link-test-380006-2868d392d217.json')
+    return spreadsheet_id, credentials_path
+
+
 def _run_sheet_mode(args: Any) -> None:
     """시트 전체를 읽어 모듈별로 config JSON 파일 생성."""
-    SPREADSHEET_ID = "1Hmrpoz1EVACFY5lHW7r4v8bEtRRFu8eay7grCojRr3E"
-    CREDENTIALS_PATH = str(project_root / 'python-link-test-380006-2868d392d217.json')
+    SPREADSHEET_ID, CREDENTIALS_PATH = _load_sheet_config()
 
     print(f"구글 시트 연결 중... (Spreadsheet ID: {SPREADSHEET_ID})")
     sync = GoogleSheetsSync(SPREADSHEET_ID, CREDENTIALS_PATH)
@@ -269,8 +280,7 @@ def _run_sheet_mode(args: Any) -> None:
 
 def _run_single_module_mode(args: Any) -> None:
     """기존처럼 단일 모듈만 변환."""
-    SPREADSHEET_ID = "1Hmrpoz1EVACFY5lHW7r4v8bEtRRFu8eay7grCojRr3E"
-    CREDENTIALS_PATH = str(project_root / 'python-link-test-380006-2868d392d217.json')
+    SPREADSHEET_ID, CREDENTIALS_PATH = _load_sheet_config()
 
     if args.output:
         output_path = Path(args.output)

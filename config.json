@@ -11,5 +11,6 @@
     "suite_id": "1999",
     "tr_url": "http://172.30.2.20",
     "multiple_test_use": false,
-    "environment": "prod"
+    "environment": "prod",
+    "spreadsheet_id": "1iv_ok0kTzWWPhzyRRbpEEnH3DPGE7VSJg2mmdlRPD78"
 }
