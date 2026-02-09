@@ -43,64 +43,37 @@ G마켓 웹사이트의 사용자 트래킹 로그를 자동으로 수집하고 
 5. **Google Sheets를 통한 데이터 관리**
    - tracking_all JSON 파일을 Google Sheets로 변환
    - Google Sheets에서 설정 파일 편집 후 JSON으로 변환
-   - 영역별 설정 파일 관리 (SRP, PDP, HOME, CART)
-   - 상세 내용은 `docs/google_sheets_sync.md` 참고
+   - 영역별 설정 파일 관리 (SRP, LP, CART, MY, ORDER)
+   - 관련 스크립트: `scripts/json_to_sheets.py`, `scripts/sheets_to_json.py`
 
 ## 📁 프로젝트 구조
 
 ```
-user_tracking_automation/
-├── config/                          # 설정 파일
-│   ├── SRP/                         # 영역별 설정 폴더
-│   │   ├── 먼저 둘러보세요.json     # 모듈별 설정 파일
-│   │   ├── 일반상품.json
-│   │   └── ...
-│   ├── PDP/                         # (향후 추가)
-│   ├── HOME/                        # (향후 추가)
-│   ├── CART/                        # (향후 추가)
-│   ├── __init__.py
-│   └── validation_rules.py          # 검증 규칙 정의
-├── features/                        # BDD Feature 파일
-│   ├── srp_tracking.feature         # SRP 영역 테스트 시나리오
-│   └── srp_tracking2.feature
-├── steps/                           # BDD Step Definitions
-│   ├── home_steps.py                # 홈페이지 관련 스텝
-│   ├── login_steps.py               # 로그인 관련 스텝
-│   ├── srp_lp_steps.py              # SRP/LP 관련 스텝
-│   ├── product_steps.py             # 상품 관련 스텝
-│   ├── cart_steps.py                # 장바구니 관련 스텝
-│   ├── checkout_steps.py            # 결제 관련 스텝
-│   ├── order_steps.py               # 주문 관련 스텝
-│   ├── tracking_steps.py            # 트래킹 로그 수집 스텝
-│   └── tracking_validation_steps.py # 트래킹 로그 검증 스텝
-├── pages/                           # Page Object Model
-│   ├── base_page.py                 # 기본 페이지 클래스
-│   ├── home_page.py                 # 홈 페이지
-│   ├── login_page.py                # 로그인 페이지
-│   ├── search_page.py               # 검색 결과 페이지
-│   ├── product_page.py              # 상품 상세 페이지
-│   ├── Etc.py                       # 공통 기능
-│   └── VipPage.py                   # VIP 페이지
-├── utils/                           # 유틸리티 모듈
-│   ├── NetworkTracker.py            # 네트워크 트래킹 로그 수집
-│   ├── validation_helpers.py        # 정합성 검증 헬퍼 함수
-│   ├── frontend_helpers.py          # 프론트엔드 실패 처리 헬퍼
-│   ├── google_sheets_sync.py        # Google Sheets 동기화
-│   ├── credentials.py               # 인증 정보 관리
-│   └── urls.py                      # URL 관리
-├── scripts/                          # 스크립트
-│   ├── json_to_sheets.py            # JSON → Google Sheets 변환
-│   └── sheets_to_json.py             # Google Sheets → JSON 변환
-├── docs/                             # 문서
-│   ├── project_structure.md          # 프로젝트 구조 상세 설명
-│   ├── google_sheets_sync.md         # Google Sheets 동기화 가이드
-│   └── flow_sequence_diagram.md      # 플로우 시퀀스 다이어그램
-├── json/                             # 수집된 로그 저장 디렉토리
-├── conftest.py                       # Pytest 설정 및 Fixture
-├── pytest.ini                        # Pytest 설정
-├── config.json                       # 프로젝트 설정 파일
-├── requirements.txt                  # Python 의존성 목록
-└── README.md                         # 프로젝트 문서
+user_tracking_automation_mweb/
+├── config/                           # 이벤트 검증 설정(JSON)
+│   ├── SRP/                          # 검색 결과(SRP) 모듈 설정
+│   ├── LP/                           # 리스트/랜딩(LP) 모듈 설정
+│   ├── CART/                         # 장바구니 영역 설정
+│   ├── MY/                           # MY 영역 설정
+│   ├── ORDER/                        # 주문완료 영역 설정
+│   ├── _common_fields.json           # 공통 필드 정의
+│   └── _common_fields_by_event.json  # 이벤트 타입별 공통 필드
+├── features/                         # BDD feature 파일
+│   ├── srp_tracking.feature
+│   ├── lp_tracking.feature
+│   ├── cart_tracking.feature
+│   ├── my_tracking.feature
+│   └── order_complete_tracking.feature
+├── steps/                            # BDD step definitions
+├── pages/                            # Playwright Page Object Model
+├── utils/                            # 트래킹/검증/연동 유틸
+├── scripts/                          # 데이터 변환/검증 보조 스크립트
+├── test_*.py                         # feature 로더 테스트 엔트리
+├── conftest.py                       # fixture 및 공통 훅
+├── pytest.ini                        # pytest 실행 설정
+├── config.json                       # 실행 환경/TestRail/시트 설정
+├── requirements.txt                  # 의존성 목록
+└── README.md
 ```
 
 ## 🚀 설치 및 실행
@@ -414,7 +387,7 @@ python scripts/sheets_to_json.py \
   --overwrite
 ```
 
-상세한 사용 방법은 `docs/google_sheets_sync.md`를 참고하세요.
+상세한 옵션은 각 스크립트의 `--help`를 참고하세요.
 
 ## 📝 주의사항
 
@@ -458,13 +431,14 @@ python scripts/sheets_to_json.py \
 
 1. 서비스 계정 JSON 파일이 프로젝트 루트에 있는지 확인
 2. 구글 시트에 서비스 계정 이메일이 공유되어 있는지 확인
-3. 상세 내용은 `docs/google_sheets_sync.md`의 "문제 해결" 섹션 참고
+3. `scripts/json_to_sheets.py --help`, `scripts/sheets_to_json.py --help` 옵션 확인
 
-## 📚 참고 문서
+## 📚 참고 파일
 
-- `docs/project_structure.md`: 프로젝트 구조 상세 설명
-- `docs/google_sheets_sync.md`: Google Sheets 데이터 관리 상세 가이드
-- `docs/flow_sequence_diagram.md`: 플로우 시퀀스 다이어그램
+- `README.md`: 프로젝트 개요/실행 방법
+- `conftest.py`: fixture/브라우저 세션/로그인 상태 처리
+- `utils/NetworkTracker.py`: 네트워크 로그 수집/분류
+- `utils/validation_helpers.py`: 정합성 검증 핵심 로직
 
 ## 📄 라이선스
 
