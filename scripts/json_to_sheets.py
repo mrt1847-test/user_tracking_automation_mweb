@@ -263,8 +263,13 @@ def main():
     )
     args = parser.parse_args()
     
-    # 하드코딩된 값 설정
-    SPREADSHEET_ID = "1Hmrpoz1EVACFY5lHW7r4v8bEtRRFu8eay7grCojRr3E"
+    # config.json에서 설정 로드
+    config_path = project_root / 'config.json'
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+    SPREADSHEET_ID = config.get('spreadsheet_id')
+    if not SPREADSHEET_ID:
+        raise RuntimeError("config.json에 'spreadsheet_id'가 설정되어 있지 않습니다.")
     CREDENTIALS_PATH = str(project_root / 'python-link-test-380006-2868d392d217.json')
     
     # JSON 파일 로드
