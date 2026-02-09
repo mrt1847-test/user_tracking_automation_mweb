@@ -127,16 +127,6 @@ class ProductPage(BasePage):
         # 선택 버튼 클릭
         self.page.get_by_text("선택", exact=True).nth(0).tap()
         logger.debug("n번쨰 그룹상품 선택완료")
-
-    def select_button_click_in_detail_page(self) -> None:
-        """
-        연관상품 상세보기 선택 버튼 클릭
-        
-        """
-
-        # 선택 버튼 클릭
-        self.page.locator(".vip-detailoption_wrap").locator(".bt_select").tap()
-        logger.debug("연관상품 상세보기 선택 버튼 클릭 완료")
        
     # ============================================
     # 모듈 및 상품 관련 메서드 (Atomic POM)
@@ -155,6 +145,8 @@ class ProductPage(BasePage):
         logger.debug(f"모듈 찾기: {module_title}")
         if module_title == "이 판매자의 인기상품이에요":
             return self.page.locator("#minishop")
+        elif module_title == "BuyBox":
+            return self.get_module_by_spmc_in_div("lowestitem")
         elif module_title == "이마트몰VT":
             return self.page.get_by_text("함께 보면 좋은 상품이에요")
         elif module_title == "이마트몰BT":
@@ -170,7 +162,7 @@ class ProductPage(BasePage):
         elif module_title == "일반상품 구매하기" or module_title == "연관상품 구매하기":
             return self.page.get_by_text("구매하기").nth(1)
         elif module_title == "일반상품 장바구니" or module_title == "연관상품 장바구니":
-            return self.page.get_by_text("장바구니").nth(1)
+            return self.page.get_by_text("장바구니",exact=True).nth(1)
         elif module_title == "일반상품 선물하기" or module_title == "연관상품 선물하기":
             return self.page.get_by_text("선물하기").nth(1)
         elif module_title == "상담신청":
@@ -206,7 +198,7 @@ class ProductPage(BasePage):
         logger.debug("모듈 내 상품 요소 찾기")
         return parent_locator.locator("li").nth(1).locator("button")
 
-    def get_product_in_emart_module(self, parent_locator: Locator, module_title) -> Locator:
+    def get_product_in_cheaper_module(self, parent_locator: Locator) -> Locator:
         """
         모듈 내 상품 요소 찾기
         
@@ -217,9 +209,7 @@ class ProductPage(BasePage):
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        if module_title == "이마트몰VT" or module_title == "이마트몰BT":
-            return parent_locator.locator("li").nth(6)
-        return parent_locator.locator("li").nth(6).locator("a").nth(0)
+        return parent_locator.locator("a")
   
     def wait_for_new_page(self):
         """
@@ -335,6 +325,7 @@ class ProductPage(BasePage):
             "연관상품": "N",
             "연관상품 상세보기": "N",
             "연관상품 더보기": "N",
+            "BuyBox": "N"
         }
         
         if modulel_title not in MODULE_AD_CHECK:
@@ -376,7 +367,7 @@ class ProductPage(BasePage):
             상품 코드 (data-montelena-goodscode 속성 값)
         """
         logger.debug("상품 코드 가져오기")
-        return self.page.locator(".relate-item_detail_info_area").locator(".add-interest").get_attribute("data-montelena-goodscode")
+        return self.page.locator(".box__layer-body").locator(".list-item.list-item--active").locator("button")
     
     def verify_display_layer(self, module_title: str) -> None:
         """
@@ -385,8 +376,6 @@ class ProductPage(BasePage):
         logger.debug(f"레이어 출력 여부 확인: {module_title}")
         if module_title == "장바구니":
             layer = self.page.locator("#layer_mycart")
-        elif module_title == "상담신청":
-            layer = self.page.locator("#box__layer-iframe--rental-counsel")
         else:
             logger.warning(f"지원되지 않는 레이어 타이틀: {module_title}")
             return

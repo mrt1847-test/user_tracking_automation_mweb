@@ -203,12 +203,16 @@ def user_confirms_and_clicks_product_in_pdp_module(browser_session, module_title
         # 모듈 내 상품 찾기
         if module_title == "이 판매자의 인기상품이에요":
             product = module
+        elif module_title == "연관상품":
+            parent = product_page.get_module_parent(module, 3)
         else:
             parent = product_page.get_module_parent(module, 2)
 
         #상품으로 이동       
         if module_title == "연관상품 상세보기":
             product = product_page.get_product_in_related_module(parent)
+        elif module_title == "BuyBox":
+            product = product_page.get_product_in_cheaper_module(module)
         else:
             product = product_page.get_product_in_module(parent)
         product_page.scroll_product_into_view(product)
@@ -354,8 +358,8 @@ def user_confirms_and_clicks_product_in_pdp_related_module(browser_session, butt
         # 상품 코드 가져오기
         if "연관상품" in button_title:
             time.sleep(2)
-            product_page.select_button_click_in_detail_page()
-            goodscode = product_page.get_product_code_in_detail_page()
+            detail_page = product_page.get_product_code_in_detail_page()
+            goodscode = product_page.get_product_code_in_json(detail_page)
         else:
             goodscode = product_page.get_product_code_in_json(button)
 
