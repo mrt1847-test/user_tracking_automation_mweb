@@ -458,4 +458,79 @@ def user_inputs_product_option(browser_session):
     except Exception as e:
         logger.error(f"상품 옵션 입력 실패: {e}", exc_info=True)
         raise e
+
+
+@when(parsers.parse('사용자가 BuyBox에서 "{module_title}" 모듈 내 상품을 확인하고 클릭한다'))
+def user_confirms_and_clicks_product_in_BuyBox_module(browser_session, module_title, bdd_context):
+    """
+    모듈 내 상품 노출 확인하고 클릭 (Atomic POM 조합)
+    
+    Args:
+        browser_session: BrowserSession 객체 (page 참조 관리)
+        module_title: 모듈 타이틀
+        bdd_context: BDD context (step 간 데이터 공유용)
+    """
+    try:
+        product_page = ProductPage(browser_session.page)
+
+        # 모듈로 이동
+        module = product_page.get_module_by_title(module_title)
+        product_page.scroll_module_into_view(module)
+        time.sleep(2)     
   
+        # 모듈 내 상품 찾기
+        parent = product_page.get_module_parent(module, 3)
+
+        #상품으로 이동       
+        product = product_page.get_product_in_module(parent)
+        product_page.scroll_product_into_view(product)
+        time.sleep(2)
+
+        # 상품 노출 확인 (실패 시 예외 발생)
+        try:
+            expect(product.first).to_be_visible()
+        except AssertionError as e:
+            # 실패 정보 저장하되 예외는 다시 발생시키지 않음
+            logger.error(f"상품 노출 확인 실패: {e}")
+            record_frontend_failure(browser_session, bdd_context, f"상품 노출 확인 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다")
+            if 'module_title' not in bdd_context.store:
+                bdd_context.store['module_title'] = module_title
+            return  # 여기서 종료 (다음 스텝으로 진행)
+    
+        # 상품 코드 가져오기
+        goodscode = product_page.get_product_code(product)
+
+        # 상품 클릭
+        try:
+                        
+            if "연관상품" in module_title:
+                product_page.click_product(product)
+            else:
+                with browser_session.page.expect_navigation(wait_until="networkidle"):
+                    product_page.click_product(product)
+                
+            time.sleep(2)
+            product_page.close_popup()
+            logger.info("팝업 닫기")
+            
+            # bdd context에 저장 (module_title, goodscode, product_url)
+            bdd_context.store['product_url'] = browser_session.page.url         
+            bdd_context.store['module_title'] = module_title
+            bdd_context.store['goodscode'] = goodscode
+
+            logger.info(f"{module_title} 모듈 내 상품 확인 및 클릭 완료: {goodscode}")
+        except Exception as e:
+            logger.error(f"상품 클릭 실패: {e}", exc_info=True)
+            record_frontend_failure(browser_session, bdd_context, f"상품 클릭 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다")
+            # goodscode는 저장 (일부 정보라도 보존)
+            if 'goodscode' in locals():
+                bdd_context.store['goodscode'] = goodscode
+            if 'module_title' not in bdd_context.store:
+                bdd_context.store['module_title'] = module_title
+                
+    except Exception as e:
+        # 예상치 못한 예외 처리
+        logger.error(f"프론트 동작 중 예외 발생: {e}", exc_info=True)
+        record_frontend_failure(browser_session, bdd_context, str(e), "사용자가 모듈 내 상품을 확인하고 클릭한다")
+        if 'module_title' not in bdd_context.store:
+            bdd_context.store['module_title'] = module_title
