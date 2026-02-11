@@ -364,6 +364,10 @@ class SearchPage(BasePage):
             base = self.page.locator("a>img.image[alt='스타배송']")
             base.wait_for(state="visible", timeout=timeout)
             return base.locator("xpath=..")
+        elif module_title == "최하단캐러셀":
+            return wait_and_return(self.page.locator(".text__sub-title", has_text="이 상품은 어떠세요?"))
+        elif module_title == "연관키워드":
+            return wait_and_return(self.page.locator(".text__sub-title", has_text="도 둘러보세요"))
         elif module_title == "4.5 이상":
             return wait_and_return(self.page.locator(".text__title", has_text="이상 만족도 높은 상품이에요"))
         elif module_title == "백화점 브랜드":
@@ -371,11 +375,11 @@ class SearchPage(BasePage):
         elif module_title == "브랜드 인기상품":
             return wait_and_return(self.page.locator(".text__title", has_text="인기상품"))
         elif module_title == "백화점픽":
-            return wait_and_return(self.page.locator(".text__title", has_text="요즘 뜨는 백화점 Pick!"))
+            return wait_and_return(self.page.locator(".text__title", has_text="요즘 뜨는 백화점"))
         elif module_title == "대체검색어":
             return wait_and_return(self.page.locator(".text_suggest", has_text="도 보시겠어요"))
         elif module_title == "MD's Pick":
-            return wait_and_return(self.page.get_by_text("믿고 사는 MD's Pick"))
+            return wait_and_return(self.page.get_by_text("믿고 사는 MD's Pick")).locator("xpath=..")
         elif module_title == "장바구니 모듈":
             return wait_and_return(self.page.locator("h3.text__title", has_text="장바구니"))
         elif module_title == "카탈로그 모듈":
@@ -413,7 +417,7 @@ class SearchPage(BasePage):
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        return parent_locator.locator("div.box__itemcard-image > a").first
+        return parent_locator.locator("div.box__itemcard a").first
     
     def get_product_in_module_type3(self, parent_locator: Locator) -> Locator:
         """
@@ -426,7 +430,7 @@ class SearchPage(BasePage):
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        return parent_locator.locator(".box__itemcard-info > a").first
+        return parent_locator.locator(".list-item > a").first
 
     def wait_for_new_page(self):
         """
@@ -561,6 +565,9 @@ class SearchPage(BasePage):
             "최상단 클릭아이템": "N",
             "주문내역": "N",
             "G마켓 인기 상품": "N",
+            "백화점픽": "N",
+            "연관키워드": "Y",
+            "최하단캐러셀": "Y",  
         }
         
         if modulel_title not in MODULE_AD_CHECK:

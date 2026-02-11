@@ -304,7 +304,7 @@ def user_confirms_and_clicks_product_in_module_type2(browser_session, module_tit
         
         # 모듈 내 상품 찾기
         parent = search_page.get_module_parent(module, 3)
-        if module_title == "4.5 이상" or module_title == "MD's Pick":
+        if module_title == "4.5 이상":
             product = search_page.get_product_in_module_type3(parent)
         else:
             product = search_page.get_product_in_module_type2(parent)

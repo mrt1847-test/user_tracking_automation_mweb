@@ -388,7 +388,16 @@ class BasePage:
             상품 코드 (data-montelena-goodscode 속성 값)
         """
         logger.debug("상품 코드 가져오기")
-        return product_locator.get_attribute("data-montelena-goodscode")
+        attr_name = "data-montelena-goodscode"
+        try:
+            value = product_locator.get_attribute(attr_name)
+            if value:
+                return value
+            # 현재 요소에서 못 찾으면 부모 노드에서 찾기
+            return product_locator.locator("xpath=..").get_attribute(attr_name)
+        except Exception as e:
+            logger.warning(f"상품 코드 조회 실패: {e}")
+            return None
        
     def get_product_code_in_json(self, product_locator: Locator) -> Optional[str]:
         """
