@@ -503,3 +503,14 @@ class ProductPage(BasePage):
             self.page.get_by_role("button", name="선택").tap()
         except:
             pass
+
+    def click_cart_button(self, location:Locator):
+        """
+        장바구니 버튼 클릭
+        """
+        logger.debug("장바구니 버튼 클릭")
+        try:
+            location.locator("xpath =/..").locator(".button__cart").nth(0).tap()
+            logger.info(f"장바구니 버튼 클릭 성공")
+        except Exception as e:
+            logger.warning(f"장바구니 버튼 클릭 실패하였으나 계속 진행: error={e}")

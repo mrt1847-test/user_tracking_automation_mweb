@@ -242,6 +242,10 @@ def user_confirms_and_clicks_product_in_pdp_module(browser_session, module_title
                         
             if "연관상품" in module_title:
                 product_page.click_product(product)
+            elif "이마트몰" in module_title or module_title == "이 브랜드의 인기상품" or module_title == "점포 행사 상품이에요":
+                product_page.click_cart_button(product)
+                time.sleep(2)
+                product_page.click_product(product)
             else:
                 with browser_session.page.expect_navigation(wait_until="networkidle"):
                     product_page.click_product(product)
