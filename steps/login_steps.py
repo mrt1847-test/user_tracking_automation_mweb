@@ -145,27 +145,6 @@ def user_click_nonmember_button(browser_session):
     login_page.click_nonmember_button()
     logger.info("비회원으로 구매하기 버튼 클릭 완료")
 
-@then("로그인 페이지가 표시된다")
-def loginpage_is_displayed(browser_session):
-    """
-    로그인 페이지가 올바르게 표시되는지 확인
-    
-    Args:
-        browser_session: BrowserSession 객체 (page 참조 관리)
-    """
-    # TODO: 로그인 페이지 특정 요소 확인 로직 구현
-    logger.info("로그인 페이지 표시 확인")
-
-@given("로그인 페이지가 표시된다")
-def loginpage_is_displayed(browser_session):
-    """
-    로그인 페이지가 올바르게 표시되는지 확인
-    
-    Args:
-        browser_session: BrowserSession 객체 (page 참조 관리)
-    """
-    # TODO: 로그인 페이지 특정 요소 확인 로직 구현
-    logger.info("로그인 페이지 표시 확인")
 
 @given("사용자가 로그아웃되어 있다")
 def user_is_logged_in(browser_session):
