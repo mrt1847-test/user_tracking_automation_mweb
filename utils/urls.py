@@ -213,7 +213,7 @@ def order_complete_url(pno: str, spm: str = None) -> str:
     Returns:
         주문 완료 페이지 URL (예: https://checkout-dev.gmarket.co.kr/ko/pc/complete?pno=4228111871&spm=gmktpc.ordersheet.order.d0#/)
     """
-    base = f"{checkout_base_url()}/ko/pc/complete"
+    base = f"{checkout_base_url()}/ko/m/complete"
     params = []
     
     params.append(f"pno={pno}")

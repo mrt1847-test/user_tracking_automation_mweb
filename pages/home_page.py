@@ -141,5 +141,5 @@ class HomePage(BasePage):
     def click_my_page(self) -> None:
         """마이페이지 버튼 클릭"""
         logger.info("마이페이지 버튼 클릭")
-        self.click("[title='나의 쇼핑정보']")
+        self.click(".link__myg")
 

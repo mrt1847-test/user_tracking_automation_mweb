@@ -700,5 +700,9 @@ class BasePage:
         try:
             self.page.locator(".button__popup-close[aria-label='레이어 닫기']").click(force=True, timeout=2000)
         except:
+            try:
+                self.page.locator(".button__close:has-text('레이어 닫기')").click(force=True, timeout=2000)
+            except:
+                pass
             pass
         time.sleep(1)

@@ -27,6 +27,7 @@ def goes_to_order_complete_page(browser_session, cart_num, bdd_context):
         order_page = OrderPage(browser_session.page)
         # 주문완료 페이지로 이동
         order_page.go_to_order_complete_page(cart_num) 
+        order_page.close_popup()
         logger.info(f"주문완료 페이지 이동 완료: {cart_num}")
     except Exception as e:
         logger.error(f"주문완료 페이지 이동 실패: {e}", exc_info=True)

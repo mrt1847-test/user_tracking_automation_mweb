@@ -32,7 +32,7 @@ class MyPage(BasePage):
         마이페이지가 표시되었는지 확인
         """
         logger.debug("마이페이지 표시 확인")
-        return self.is_visible(".link__mypage:has-text('나의 G마켓')")
+        return self.is_visible(".text__title:has-text('주문내역')")
 
     def click_order_history(self):
         """
@@ -41,17 +41,17 @@ class MyPage(BasePage):
         동일 링크가 2개 있을 수 있어 첫 번째 요소만 클릭.
         """
         logger.info("주문내역 버튼 클릭")
-        self.page.locator(".text__menu:has-text('주문내역')").first.click()
+        self.page.locator(".text__title:has-text('주문내역')").first.click()
 
     def is_order_history_page_displayed(self):
         """
         주문내역 페이지가 표시되었는지 확인
         """
         logger.debug("주문내역 페이지 표시 확인")
-        return self.is_visible(".text__title:has-text('주문내역')")
+        return self.is_visible(".box__title:has-text('주문내역')")
 
     # 주문내역 상품 썸네일 img 공통 셀렉터 (box__thumbnail은 클래스이므로 앞에 . 필요)
-    _ORDER_ITEM_IMG = ".box__order-item .box__thumbnail img"
+    _ORDER_ITEM_IMG = ".link__item-information a"
 
     def get_goods_code_from_order_history(self):
         """
