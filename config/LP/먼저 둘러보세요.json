@@ -81,8 +81,8 @@
           ],
           "spm-url": "",
           "spm-pre": "",
-          "spm-cnt": "gmktpc.searchlistcategory.0",
-          "pid": "www_gmarket_co_kr",
+          "spm-cnt": "gmktm.searchlistcategory.0.0",
+          "pid": "m_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
           "spm": "gmktm.searchlistcategory.cpc"
@@ -95,7 +95,7 @@
       "scr": "mandatory",
       "ts": "mandatory",
       "uidaplus": "11758850530814005372000000",
-      "spm-cnt": "gmktpc.searchlistcategory.0"
+      "spm-cnt": "gmktm.searchlistcategory.0.0"
     }
   },
   "product_exposure": {
@@ -139,21 +139,21 @@
               "utLogMap": {
                 "parsed": {
                   "ab_buckets": "skip",
-                  "listno": "0",
                   "pageIndex": "0",
-                  "pagePos": "0",
                   "pageSize": "mandatory",
-                  "pvid": "mandatory",
+                  "pvid": "skip",
                   "x_object_type": "item",
                   "x_sku_id": "0",
                   "scene": "search",
                   "sub_scene": "main_srp",
                   "x_object_id": "<상품번호>",
+                  "pagePos": "0",
+                  "listno": "0",
                   "sort": "popularity",
                   "searchScenario": "category",
                   "query": "<검색어>",
                   "pvid_sys": "gmarket server",
-                  "search_session_id": "mandatory",
+                  "search_session_id": "skip",
                   "origin_price": "<원가>",
                   "promotion_price": "<할인가>",
                   "coupon_price": "<쿠폰적용가>",
@@ -171,7 +171,7 @@
           }
         },
         "scm": "",
-        "spm": "gmktpc.searchlistcategory.cpc.d0_0"
+        "spm": "gmktm.searchlistcategory.cpc.d0_0"
       },
       "raw": "mandatory"
     },
@@ -221,10 +221,10 @@
       "webkit",
       "chrome"
     ],
-    "spm-cnt": "gmktpc.searchlistcategory.0",
+    "spm-cnt": "gmktm.searchlistcategory.0.0",
     "spm-url": "",
     "spm-pre": "",
-    "pid": "www_gmarket_co_kr",
+    "pid": "m_gmarket_co_kr",
     "channel_code": "200003514",
     "server_env": "<environment>"
   },
@@ -284,21 +284,21 @@
         "utLogMap": {
           "parsed": {
             "ab_buckets": "skip",
-            "listno": "0",
             "pageIndex": "0",
-            "pagePos": "0",
             "pageSize": "mandatory",
-            "pvid": "mandatory",
+            "pvid": "skip",
             "x_object_type": "item",
             "x_sku_id": "0",
             "scene": "search",
             "sub_scene": "main_srp",
             "x_object_id": "<상품번호>",
+            "pagePos": "0",
+            "listno": "0",
             "sort": "popularity",
             "searchScenario": "category",
             "query": "<검색어>",
             "pvid_sys": "gmarket server",
-            "search_session_id": "mandatory",
+            "search_session_id": "skip",
             "origin_price": "<원가>",
             "promotion_price": "<할인가>",
             "coupon_price": "<쿠폰적용가>",
@@ -333,13 +333,13 @@
       "webkit",
       "chrome"
     ],
-    "spm-cnt": "gmktpc.searchlistcategory.0",
+    "spm-cnt": "gmktm.searchlistcategory.0.0",
     "spm-url": "",
     "spm-pre": "",
-    "pid": "www_gmarket_co_kr",
+    "pid": "m_gmarket_co_kr",
     "channel_code": "200003514",
     "server_env": "<environment>",
-    "spm": "gmktpc.searchlistcategory.cpc.d0_0"
+    "spm": "gmktm.searchlistcategory.cpc.d0_0"
   },
   "product_atc_click": {
     "payload": {
@@ -398,21 +398,21 @@
               "utLogMap": {
                 "parsed": {
                   "ab_buckets": "skip",
-                  "listno": "0",
                   "pageIndex": "0",
-                  "pagePos": "0",
                   "pageSize": "mandatory",
-                  "pvid": "mandatory",
+                  "pvid": "skip",
                   "x_object_type": "item",
                   "x_sku_id": "0",
                   "scene": "search",
                   "sub_scene": "main_srp",
                   "x_object_id": "<상품번호>",
+                  "pagePos": "0",
+                  "listno": "0",
                   "sort": "popularity",
                   "searchScenario": "category",
                   "query": "<검색어>",
                   "pvid_sys": "gmarket server",
-                  "search_session_id": "mandatory",
+                  "search_session_id": "skip",
                   "origin_price": "<원가>",
                   "promotion_price": "<할인가>",
                   "coupon_price": "<쿠폰적용가>",
@@ -448,11 +448,11 @@
           ],
           "spm-url": "",
           "spm-pre": "",
-          "spm-cnt": "gmktpc.searchlistcategory.0",
-          "pid": "www_gmarket_co_kr",
+          "spm-cnt": "gmktm.searchlistcategory.0.0",
+          "pid": "m_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktpc.searchlistcategory.cpc.d0_0"
+          "spm": "gmktm.searchlistcategory.cpc.d0_0"
         }
       },
       "gmkey": "CLK",
@@ -462,7 +462,7 @@
       "scr": "mandatory",
       "ts": "mandatory",
       "uidaplus": "11758850530814005372000000",
-      "spm-cnt": "gmktpc.searchlistcategory.0"
+      "spm-cnt": "gmktm.searchlistcategory.0.0"
     }
   }
 }

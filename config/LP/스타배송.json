@@ -81,8 +81,8 @@
           ],
           "spm-url": "",
           "spm-pre": "",
-          "spm-cnt": "gmktpc.searchlistcategory.0",
-          "pid": "www_gmarket_co_kr",
+          "spm-cnt": "gmktm.searchlistcategory.0.0",
+          "pid": "m_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
           "spm": "gmktm.searchlistcategory.stardelivery"
@@ -95,7 +95,7 @@
       "scr": "mandatory",
       "ts": "mandatory",
       "uidaplus": "11758850530814005372000000",
-      "spm-cnt": "gmktpc.searchlistcategory.0"
+      "spm-cnt": "gmktm.searchlistcategory.0.0"
     }
   },
   "product_exposure": {
@@ -139,21 +139,21 @@
               "utLogMap": {
                 "parsed": {
                   "ab_buckets": "skip",
-                  "listno": "0",
                   "pageIndex": "0",
-                  "pagePos": "0",
                   "pageSize": "mandatory",
-                  "pvid": "mandatory",
+                  "pvid": "skip",
                   "x_object_type": "item",
                   "x_sku_id": "0",
                   "scene": "search",
                   "sub_scene": "main_srp",
                   "x_object_id": "<상품번호>",
+                  "pagePos": "0",
+                  "listno": "0",
                   "sort": "popularity",
                   "searchScenario": "category",
                   "query": "<검색어>",
                   "pvid_sys": "gmarket server",
-                  "search_session_id": "mandatory",
+                  "search_session_id": "skip",
                   "origin_price": "<원가>",
                   "promotion_price": "<할인가>",
                   "coupon_price": "<쿠폰적용가>",
@@ -161,7 +161,7 @@
                 },
                 "raw": "mandatory"
               },
-              "gmkt_area_code": "200009170",
+              "gmkt_area_code": "200011577",
               "is_ad": "<is_ad>",
               "_p_prod": "<상품번호>"
             },
@@ -169,7 +169,7 @@
           }
         },
         "scm": "",
-        "spm": "gmktpc.searchlistcategory.stardelivery.d0_0"
+        "spm": "gmktm.searchlistcategory.stardelivery.d0_0"
       },
       "raw": "mandatory"
     },
@@ -219,10 +219,10 @@
       "webkit",
       "chrome"
     ],
-    "spm-cnt": "gmktpc.searchlistcategory.0",
+    "spm-cnt": "gmktm.searchlistcategory.0.0",
     "spm-url": "",
     "spm-pre": "",
-    "pid": "www_gmarket_co_kr",
+    "pid": "m_gmarket_co_kr",
     "channel_code": "200003514",
     "server_env": "<environment>"
   },
@@ -282,21 +282,21 @@
         "utLogMap": {
           "parsed": {
             "ab_buckets": "skip",
-            "listno": "0",
             "pageIndex": "0",
-            "pagePos": "0",
             "pageSize": "mandatory",
-            "pvid": "mandatory",
+            "pvid": "skip",
             "x_object_type": "item",
             "x_sku_id": "0",
             "scene": "search",
             "sub_scene": "main_srp",
             "x_object_id": "<상품번호>",
+            "pagePos": "0",
+            "listno": "0",
             "sort": "popularity",
             "searchScenario": "category",
             "query": "<검색어>",
             "pvid_sys": "gmarket server",
-            "search_session_id": "mandatory",
+            "search_session_id": "skip",
             "origin_price": "<원가>",
             "promotion_price": "<할인가>",
             "coupon_price": "<쿠폰적용가>",
@@ -304,7 +304,7 @@
           },
           "raw": "mandatory"
         },
-        "gmkt_area_code": "200009170",
+        "gmkt_area_code": "200011577",
         "is_ad": "<is_ad>",
         "_p_prod": "<상품번호>"
       },
@@ -329,13 +329,13 @@
       "webkit",
       "chrome"
     ],
-    "spm-cnt": "gmktpc.searchlistcategory.0",
+    "spm-cnt": "gmktm.searchlistcategory.0.0",
     "spm-url": "",
     "spm-pre": "",
-    "pid": "www_gmarket_co_kr",
+    "pid": "m_gmarket_co_kr",
     "channel_code": "200003514",
     "server_env": "<environment>",
-    "spm": "gmktpc.searchlistcategory.stardelivery.d0_0"
+    "spm": "gmktm.searchlistcategory.stardelivery.d0_0"
   },
   "product_atc_click": {
     "payload": {
@@ -394,21 +394,21 @@
               "utLogMap": {
                 "parsed": {
                   "ab_buckets": "skip",
-                  "listno": "0",
                   "pageIndex": "0",
-                  "pagePos": "0",
                   "pageSize": "mandatory",
-                  "pvid": "mandatory",
+                  "pvid": "skip",
                   "x_object_type": "item",
                   "x_sku_id": "0",
                   "scene": "search",
                   "sub_scene": "main_srp",
                   "x_object_id": "<상품번호>",
+                  "pagePos": "0",
+                  "listno": "0",
                   "sort": "popularity",
                   "searchScenario": "category",
                   "query": "<검색어>",
                   "pvid_sys": "gmarket server",
-                  "search_session_id": "mandatory",
+                  "search_session_id": "skip",
                   "origin_price": "<원가>",
                   "promotion_price": "<할인가>",
                   "coupon_price": "<쿠폰적용가>",
@@ -416,7 +416,7 @@
                 },
                 "raw": "mandatory"
               },
-              "gmkt_area_code": "200013164",
+              "gmkt_area_code": "200011578",
               "is_ad": "<is_ad>",
               "is_airticket": "N",
               "_p_prod": "<상품번호>"
@@ -442,11 +442,11 @@
           ],
           "spm-url": "",
           "spm-pre": "",
-          "spm-cnt": "gmktpc.searchlistcategory.0",
-          "pid": "www_gmarket_co_kr",
+          "spm-cnt": "gmktm.searchlistcategory.0.0",
+          "pid": "m_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktpc.searchlistcategory.stardelivery.d0_0"
+          "spm": "gmktm.searchlistcategory.stardelivery.d0_0"
         }
       },
       "gmkey": "CLK",
@@ -456,7 +456,7 @@
       "scr": "mandatory",
       "ts": "mandatory",
       "uidaplus": "11758850530814005372000000",
-      "spm-cnt": "gmktpc.searchlistcategory.0"
+      "spm-cnt": "gmktm.searchlistcategory.0.0"
     }
   }
 }
