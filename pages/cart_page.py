@@ -35,28 +35,28 @@ class CartPage(BasePage):
         self.page.goto(product_url(goodscode), wait_until="domcontentloaded", timeout=30000)
         logger.info("장바구니 페이지 이동 완료")
 
-    def click_add_cart_button(self, timeout: int = 10000) -> None:
+
+    def click_buy_now_button(self, timeout: int = 10000) -> None:
+        """
+        구매하기 버튼 클릭
+        """
+        logger.debug("구매하기 버튼 클릭")
+        btn = self.page.locator(".button__buy--normal").nth(0)
+        btn.wait_for(state="visible", timeout=timeout)
+        btn.scroll_into_view_if_needed(timeout=timeout)
+        btn.click(timeout=timeout)
+        logger.info("구매하기 버튼 클릭 완료")
+
+    def click_cart_now_button(self, timeout: int = 10000) -> None:
         """
         장바구니 버튼 클릭
-        
-        Args:
-            timeout: 타임아웃 (기본값: 10000ms)
         """
         logger.debug("장바구니 버튼 클릭")
-        # nth(0)으로 첫 번째 요소 명시적 선택
-        buy_button = self.page.locator("#coreAddCartBtn").nth(0)
-        
-        # 요소가 나타날 때까지 먼저 대기
-        buy_button.wait_for(state="attached", timeout=timeout)
-        logger.debug("장바구니 버튼이 DOM에 나타남")
-        
-        # 버튼이 화면에 보이도록 스크롤
-        buy_button.scroll_into_view_if_needed(timeout=timeout)
-        logger.debug("장바구니 버튼이 화면에 보이도록 스크롤 완료")
-        
-        # 버튼 탭 (모바일: 터치 이벤트로 트래킹 인식)
-        buy_button.tap(timeout=timeout)
-        logger.info("장바구니 버튼 탭 완료")
+        btn = self.page.locator(".button__cart--normal").nth(0)
+        btn.wait_for(state="visible", timeout=timeout)
+        btn.scroll_into_view_if_needed(timeout=timeout)
+        btn.click(timeout=timeout)
+        logger.info("장바구니 버튼 클릭 완료")
 
     def select_group_product(self, n: int, timeout: int = 10000) -> None:
         """
@@ -70,48 +70,36 @@ class CartPage(BasePage):
             n = f"0{n}"
         else:
             n = f"{n}"
-        logger.debug("그룹 옵션레이어 클릭")
-        # nth(0)으로 첫 번째 요소 명시적 선택
-        group_product_layer = self.page.locator(".select-item_option").nth(0)
         
-        # 요소가 나타날 때까지 먼저 대기
-        group_product_layer.wait_for(state="attached", timeout=timeout)
-        logger.debug("그룹 옵션레이어 DOM에 나타남")
-        
-        # 그룹 옵션레이어 화면에 보이도록 스크롤
-        group_product_layer.scroll_into_view_if_needed(timeout=timeout)
-        logger.debug("그룹 옵션레이어 화면에 보이도록 스크롤 완료")
-        
-        # 그룹 옵션레이어 클릭
-        group_product_layer.click(timeout=timeout)
-        logger.debug("그룹 옵션레이어 클릭 완료")
+        logger.info("그룹 옵션레이어 클릭 시도 (.button__select.sprite)")
+        select_btn = self.page.locator(".button__select.sprite > .box__thumbnail").first
+        select_btn.click()
+        logger.info("그룹 옵션 버튼 클릭 완료")
 
-        #n번쨰 그룹상품 선택
-        group_product = self.page.locator(f"#coreAnchor{n}")
-        
-        # 요소가 나타날 때까지 먼저 대기
-        group_product.wait_for(state="attached", timeout=timeout)
-        logger.debug("n번쨰 그룹상품 DOM에 나타남")
-        
-        # n번쨰 그룹상품 화면에 보이도록 스크롤
+        # span.text__name "상품 선택" 이 나타날 때까지 대기 (옵션 레이어 표시)
+        option_layer = self.page.locator("span.text__name", has_text="상품 선택")
+        option_layer.wait_for(state="visible", timeout=timeout)
+        logger.debug("상품 선택 레이어 표시됨")
+
+        # span.text__num "상품 {n}" 인 그룹상품 (클릭은 부모 행에서 수행)
+        group_product = self.page.locator("span.text__num", has_text=f"상품 {n}").first.locator("xpath=..")
         group_product.scroll_into_view_if_needed(timeout=timeout)
-        logger.debug("n번쨰 그룹상품 화면에 보이도록 스크롤 완료")
         
-        # n번쨰 그룹상품 클릭
-        group_product.click(timeout=timeout)
+        # n번쨰 그룹상품 강제 클릭 (부모 요소가 실제 클릭 영역)
+        group_product.tap(timeout=timeout, force=True)
 
-        # 선택 버튼 클릭
-        self.page.get_by_text("선택", exact=True).nth(0).click()
-        logger.info("n번쨰 그룹상품 선택택 완료")
+        # button, text "선택" 인 요소 클릭
+        self.page.get_by_role("button", name="선택").first.click()
+        logger.info("n번쨰 그룹상품 선택 완료")
 
 
     def wait_for_cart_page_load(self) -> None:
         """
         장바구니 페이지 로드 대기
-        <h3 class="title">장바구니</h3> 요소가 보일 때까지 대기
+        <h1 class="box__title"> 내 텍스트 "장바구니"가 보일 때까지 대기
         """
-        logger.debug("장바구니 페이지 로드 대기 (h3.title '장바구니' 확인)")
-        loc = self.page.locator('h3.title:has-text("장바구니")')
+        logger.debug("장바구니 페이지 로드 대기 (h1.box__title + 텍스트 '장바구니')")
+        loc = self.page.locator("h1.box__title", has_text="장바구니")
         loc.wait_for(state="visible", timeout=self.timeout)
         logger.info("장바구니 페이지 로드 확인됨")
         
@@ -134,33 +122,20 @@ class CartPage(BasePage):
     def click_go_to_cart_page(self, timeout: int = 10000) -> None:
         """
         장바구니 페이지로 이동.
-        1) '장바구니로' 버튼(다중 로케이터) 클릭 시도.
-        2) 실패 시 헤더의 장바구니 링크( a[title="장바구니"] / data-montelena-acode=200003389 ) 클릭.
+        헤더의 장바구니 링크 클릭 (다중 로케이터).
 
         Args:
             timeout: 타임아웃 (기본값: 10000ms)
         """
-        btn = (
-            self.page.locator("button.btn_round.btn_blue")
-            .or_(self.page.locator('button[data-montelena-acode="200000545"]'))
-            .or_(self.page.locator('button:has-text("장바구니로")'))
-        )
-        link = (
-            self.page.locator('a[data-montelena-acode="200003389"]')
+        cart_link = (
+            self.page.locator('a.link__cart[data-montelena-acode="200004339"]')
+            .or_(self.page.locator("a.link__cart"))
+            .or_(self.page.locator('a[href*="cart.gmarket.co.kr"]'))
             .or_(self.page.locator('a[title="장바구니"]'))
         )
-
-        try:
-            logger.debug("장바구니로 버튼 클릭 시도")
-            btn.wait_for(state="attached", timeout=timeout)
-            btn.scroll_into_view_if_needed(timeout=timeout)
-            btn.click(timeout=timeout)
-        except Exception as e:
-            logger.debug("장바구니로 버튼 클릭 실패, 헤더 장바구니 링크로 대체: %s", e)
-            link.wait_for(state="attached", timeout=timeout)
-            link.scroll_into_view_if_needed(timeout=timeout)
-            link.click(timeout=timeout)
-
+        logger.debug("장바구니 링크 클릭")
+        cart_link.wait_for(state="attached", timeout=timeout)
+        cart_link.click(timeout=timeout)
         logger.info("장바구니 페이지로 이동 완료")
 
     def check_module_in_cart(self, module_title: str, timeout: Optional[int] = None) -> Locator:

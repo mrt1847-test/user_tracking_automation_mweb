@@ -33,7 +33,7 @@
           "_method": "POST",
           "is_auto": "1",
           "scm": "",
-          "spm": "gmktpc.searchlist.stardelivery",
+          "spm": "gmktm.searchlist.stardelivery",
           "_w": "mandatory",
           "_h": "mandatory",
           "_x": "mandatory",

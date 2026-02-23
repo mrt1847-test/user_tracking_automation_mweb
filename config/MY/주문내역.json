@@ -86,7 +86,7 @@
           "pid": "my_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktpc.orderlist.orderlistall"
+          "spm": "gmktm.orderlist.orderlistall"
         }
       },
       "gmkey": "EXP",

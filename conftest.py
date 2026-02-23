@@ -249,10 +249,10 @@ def create_login_state(pw):
     )
     page = context.new_page()
     page.goto(base_url())
-    #팝업 닫기
+    #팝업 닫기 (최대 3초 대기)
     try:
-        page.locator(".button__popup-close[aria-label='레이어 닫기']").click()
-    except:
+        page.locator(".button__popup-close[aria-label='레이어 닫기']").click(timeout=3000)
+    except Exception:
         pass
 
     # 로그인 페이지 이동 및 입력

@@ -81,11 +81,11 @@
           ],
           "spm-url": "",
           "spm-pre": "",
-          "spm-cnt": "gmktpc.cart.0.0",
+          "spm-cnt": "gmktm.cart.0.0",
           "pid": "cart_gmarket_co_kr",
-          "channel_code": "",
+          "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktpc.cart.cart"
+          "spm": "gmktm.cart.cart"
         }
       },
       "gmkey": "EXP",
@@ -95,7 +95,7 @@
       "scr": "mandatory",
       "ts": "mandatory",
       "uidaplus": "11758850530814005372000000",
-      "spm-cnt": "gmktpc.cart.0.0"
+      "spm-cnt": "gmktm.cart.0.0"
     }
   },
   "product_exposure": {
@@ -174,7 +174,7 @@
           }
         },
         "scm": "",
-        "spm": "gmktpc.cart.cart.ditemlower0"
+        "spm": "gmktm.cart.cart.ditemlower0"
       },
       "raw": "mandatory"
     },
@@ -224,11 +224,11 @@
       "webkit",
       "chrome"
     ],
-    "spm-cnt": "gmktpc.cart.0.0",
+    "spm-cnt": "gmktm.cart.0.0",
     "spm-url": "",
     "spm-pre": "",
     "pid": "cart_gmarket_co_kr",
-    "channel_code": "",
+    "channel_code": "200003514",
     "server_env": "<environment>"
   },
   "product_click": {
@@ -339,13 +339,13 @@
       "webkit",
       "chrome"
     ],
-    "spm-cnt": "gmktpc.cart.0.0",
+    "spm-cnt": "gmktm.cart.0.0",
     "spm-url": "",
     "spm-pre": "",
     "pid": "cart_gmarket_co_kr",
-    "channel_code": "",
+    "channel_code": "200003514",
     "server_env": "<environment>",
-    "spm": "gmktpc.cart.cart.ditemlower0"
+    "spm": "gmktm.cart.cart.ditemlower0"
   },
   "product_atc_click": {
     "payload": {
@@ -455,11 +455,11 @@
           ],
           "spm-url": "",
           "spm-pre": "",
-          "spm-cnt": "gmktpc.cart.0.0",
+          "spm-cnt": "gmktm.cart.0.0",
           "pid": "cart_gmarket_co_kr",
-          "channel_code": "",
+          "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktpc.cart.cart.ditemlower0"
+          "spm": "gmktm.cart.cart.ditemlower0"
         }
       },
       "gmkey": "CLK",
@@ -469,7 +469,7 @@
       "scr": "mandatory",
       "ts": "mandatory",
       "uidaplus": "11758850530814005372000000",
-      "spm-cnt": "gmktpc.cart.0.0"
+      "spm-cnt": "gmktm.cart.0.0"
     }
   }
 }

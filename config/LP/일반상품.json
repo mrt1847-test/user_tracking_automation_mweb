@@ -85,7 +85,7 @@
           "pid": "www_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktpc.searchlistcategory.organictier"
+          "spm": "gmktm.searchlistcategory.organictier"
         }
       },
       "gmkey": "EXP",

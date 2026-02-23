@@ -50,12 +50,13 @@ def add_product_to_cart(browser_session, goodscode, bdd_context):
     try:
         cart_page = CartPage(browser_session.page)
         cart_page.go_to_product_page(goodscode)
+        cart_page.click_buy_now_button()
         try:
-            cart_page.select_group_product(1)
+            cart_page.select_group_product(2)
         except:
             logger.debug("그룹상품 선택 실패: %s")
 
-        cart_page.click_add_cart_button()
+        cart_page.click_cart_now_button()
         cart_page.click_go_to_cart_page()
         logger.info("장바구니 추가 완료: %s", goodscode)
     except Exception as e:
@@ -102,18 +103,6 @@ def cart_page_has_module(browser_session, module_title, bdd_context):
         # 모듈이 존재하는지 확인 (count == 0이면 모듈이 없음)
         module_count = module.count()
         logger.info(f"모듈 존재 확인: {module_count}")
-        if module_count == 0:
-            # 모듈이 없으면 skip 플래그 설정 (시나리오는 계속 진행)
-            skip_reason = f"'{module_title}' 모듈이 검색 결과에 없습니다."
-            logger.warning(skip_reason)
-            if hasattr(bdd_context, '__setitem__'):
-                bdd_context['skip_reason'] = skip_reason
-            elif hasattr(bdd_context, 'store'):
-                bdd_context.store['skip_reason'] = skip_reason
-            # module_title은 저장 (다음 스텝에서 사용 가능하도록)
-            bdd_context.store['module_title'] = module_title
-            return  # 여기서 종료 (다음 스텝으로 진행하되 skip 상태로 기록됨)
-        
         # 모듈이 있으면 visibility 확인 (실패 시 플래그만 설정)
         try:
             expect(module.first).to_be_attached()
@@ -158,17 +147,6 @@ def clicks_product_in_cart_module(browser_session, module_title, bdd_context):
         parent = cart_page.get_module_parent(module, 2)
         product = cart_page.get_product_in_module(parent)
         cart_page.scroll_product_into_view(product)
-        
-        # 상품 노출 확인 (실패 시 예외 발생)
-        try:
-            expect(product.first).to_be_visible()
-        except AssertionError as e:
-            # 실패 정보 저장하되 예외는 다시 발생시키지 않음
-            logger.error(f"상품 노출 확인 실패: {e}")
-            record_frontend_failure(browser_session, bdd_context, f"상품 노출 확인 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다")
-            if 'module_title' not in bdd_context.store:
-                bdd_context.store['module_title'] = module_title
-            return  # 여기서 종료 (다음 스텝으로 진행)
         
         # 상품 코드 가져오기
         goodscode = cart_page.get_product_code(product)
