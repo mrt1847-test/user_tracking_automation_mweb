@@ -474,10 +474,11 @@ def product_page_is_opened(browser_session, bdd_context):
             bdd_context['frontend_action_failed'] = True
             bdd_context['frontend_error_message'] = "goodscode가 설정되지 않았습니다."
             return
-        
-        # 먼저 상품 페이지로 이동할 때까지 대기 (클릭 직후 검증하면 아직 주문내역 URL이라 실패함)
+
+        goodscode_str = str(goodscode).strip()
+        # 같은 탭에서 페이지만 이동하므로 현재 page에서 URL 전환 대기
         try:
-            browser_session.page.wait_for_url(f"*{goodscode}*", timeout=15000)
+            browser_session.page.wait_for_url(f"*{goodscode_str}*", timeout=15000)
             logger.debug("상품 페이지 URL 전환 대기 완료")
         except Exception as e:
             logger.warning(f"URL 전환 대기 실패: {e}")
@@ -493,10 +494,16 @@ def product_page_is_opened(browser_session, bdd_context):
                 logger.warning(f"load 상태 대기도 실패: {e2}")
         time.sleep(2)
 
-        # 검증 (실패 시 예외 발생) — 네비게이션 대기 후 현재 URL로 확인
+        # URL 수집 타이밍: goodscode 포함될 때까지 한 번 더 대기 후 수집
         try:
-            current_url = browser_session.page.url
-            search_page.verify_product_code_in_url(current_url, goodscode)
+            browser_session.page.wait_for_url(f"*{goodscode_str}*", timeout=5000)
+        except Exception:
+            pass
+        current_url = browser_session.page.url
+
+        # 검증 (실패 시 예외 발생) — 수집한 URL로 확인
+        try:
+            search_page.verify_product_code_in_url(current_url, goodscode_str)
         except AssertionError as e:
             logger.error(f"상품 페이지 이동 확인 실패: {e}")
             record_frontend_failure(browser_session, bdd_context, f"상품 페이지 이동 확인 실패: {str(e)}", "상품 페이지로 이동되었다")

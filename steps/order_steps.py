@@ -180,7 +180,7 @@ def user_confirms_and_clicks_product_in_module_click(browser_session, module_tit
         atc_button = order_page.get_atc_button_in_order_complete_module(module)
         goodscode = order_page.get_goodscode_in_product(atc_button)
         product = order_page.get_product_by_code(goodscode)
-        atc_button.click()
+        atc_button.tap()
         logger.info(f"{module_title} 모듈 내 상품 확인 및 담기 완료: goodscode={goodscode}")
         
         # 광고상품 여부 결정 (모듈 설정이 "F"면 상품 태그 확인, 아니면 모듈 설정 사용)
@@ -191,7 +191,7 @@ def user_confirms_and_clicks_product_in_module_click(browser_session, module_tit
         
         # 상품 클릭
         try:
-            product.click()
+            product.tap()
             
             # bdd context에 저장 (module_title, goodscode, is_ad 등)
             bdd_context.store['module_title'] = module_title

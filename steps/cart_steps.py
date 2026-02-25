@@ -64,6 +64,25 @@ def add_product_to_cart(browser_session, goodscode, bdd_context):
         record_frontend_failure(browser_session, bdd_context, f"장바구니 추가 실패: {e}", '사용자가 "{goodscode}" 상품을 장바구니에 추가한다')
 
 
+@when("사용자가 장바구니 페이지로 이동한다")
+def add_product_to_cart(browser_session, bdd_context):
+    """
+    상단 장바구니 버튼 클릭
+    Args:
+        browser_session: BrowserSession 객체 (page 참조 관리)
+        bdd_context: BDD context (step 간 데이터 공유용)
+    """
+    try:
+        cart_page = CartPage(browser_session.page)
+        cart_page.close_popup()
+        cart_page.click_go_to_cart_page()
+        logger.info("장바구니 버튼 클릭 완료")
+    except Exception as e:
+        logger.error("장바구니 추가 실패: %s", e, exc_info=True)
+        record_frontend_failure(browser_session, bdd_context, f"장바구니 추가 실패: {e}", '사용자가 "{goodscode}" 상품을 장바구니에 추가한다')
+
+
+
 @then("장바구니 페이지가 표시된다")
 def cart_page_is_displayed(browser_session, bdd_context):
     """

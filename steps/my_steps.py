@@ -28,6 +28,8 @@ def when_user_goes_to_my_order_history(browser_session, bdd_context):
         my_page = MyPage(browser_session.page)
         home_page = HomePage(browser_session.page)
 
+        my_page.close_popup()
+
         # 홈에서 My(마이) 페이지로 이동
         home_page.click_my_page()
         time.sleep(1)
@@ -147,11 +149,6 @@ def when_user_confirms_and_clicks_product_in_order_history(browser_session, modu
 
         # 장바구니 담기 버튼 존재할 경우 클릭 후 얼럿 닫기
         my_page.click_atc_in_order_history_by_goodscode(str(goodscode))
-        try:
-            my_page.atc_alert_close()
-        except Exception as e:
-            logger.warning(f"담기 얼럿 닫기 실패: {e}")
-
         # 상품 클릭 — 새 탭이 열리면 전환, 같은 탭 이동이면 URL 전환 대기 (SearchPage.click_product_and_wait_new_page와 동일 패턴)
         try:
             new_page = my_page.click_product_in_order_history_and_wait_new_page(str(goodscode))

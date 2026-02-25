@@ -143,3 +143,62 @@ class HomePage(BasePage):
         logger.info("마이페이지 버튼 클릭")
         self.click(".link__myg")
 
+    def click_rvh(self) -> None:
+        """RVH 버튼 클릭"""
+        logger.info("RVH 버튼 클릭")
+        self.click(".link__rvh")
+
+    def wait_for_rvh_page_load(self, timeout: int = None) -> bool:
+        """
+        RVH 페이지 로드 대기.
+        span.desc-txt "쇼핑 히스토리예요." 요소가 보일 때까지 대기한 뒤 표시 여부를 반환한다.
+
+        Args:
+            timeout: 타임아웃(ms). None이면 self.timeout 사용.
+
+        Returns:
+            요소가 보이면 True, 타임아웃 등으로 실패하면 False.
+        """
+        timeout = timeout or self.timeout
+        logger.debug("RVH 페이지 로드 대기 (span.desc-txt '쇼핑 히스토리예요.')")
+        try:
+            loc = self.page.locator("span.desc-txt", has_text="쇼핑 히스토리예요.")
+            loc.wait_for(state="visible", timeout=timeout)
+            visible = loc.is_visible()
+            if visible:
+                logger.info("RVH 페이지 로드 확인됨")
+            return visible
+        except Exception as e:
+            logger.warning("RVH 페이지 로드 대기 실패: %s", e)
+            return False
+
+    def is_recently_viewed_displayed(self, timeout: int = None) -> bool:
+        """
+        최근 본 내역이 노출되는지 확인.
+        strong.list-rvh__date (날짜 헤딩, 예: 2026.02.24 오늘) 요소가 보이면 True.
+
+        Args:
+            timeout: 타임아웃(ms). None이면 self.timeout 사용.
+
+        Returns:
+            노출되어 있으면 True, 아니면 False.
+        """
+        timeout = timeout or self.timeout
+        logger.debug("최근 본 내역 노출 확인 (strong.list-rvh__date)")
+        try:
+            loc = self.page.locator("strong.list-rvh__date").first
+            loc.wait_for(state="visible", timeout=timeout)
+            visible = loc.is_visible()
+            if visible:
+                logger.info("최근 본 내역 노출 확인됨")
+            return visible
+        except Exception as e:
+            logger.warning("최근 본 내역 노출 확인 실패: %s", e)
+            return False
+
+    def get_product_in_module(self):
+        """
+        모듈 내 상품 요소 찾기
+        """
+        logger.debug("모듈 내 상품 요소 찾기")
+        return self.page.locator(".list-rvh__content-item--product a").first

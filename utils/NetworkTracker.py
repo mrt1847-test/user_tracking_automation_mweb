@@ -270,6 +270,7 @@ class NetworkTracker:
     def _parse_json_param(self, value: str) -> Optional[Any]:
         """
         URL 인코딩된 JSON 문자열을 디코딩 후 파싱 (clk_itm_info, utparam-url 등)
+        제어 문자(\\u001e, \\u001f 등)가 포함된 문자열도 파싱되도록 strict=False 사용.
         
         Args:
             value: URL 인코딩된 JSON 문자열 (단일/다중 인코딩 가능)
@@ -283,7 +284,7 @@ class NetworkTracker:
         for _ in range(3):
             try:
                 decoded = unquote(decoded)
-                parsed = json.loads(decoded)
+                parsed = json.loads(decoded, strict=False)
                 if isinstance(parsed, (dict, list)):
                     return parsed
             except (json.JSONDecodeError, TypeError):

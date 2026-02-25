@@ -7,7 +7,7 @@ Feature: G마켓 RVH 트래킹 로그 정합성 검증
     When 사용자가 RVH 페이지로 이동한다
     Then RVH으로 이동했다
     Given 최근 본 내역이 존재한다
-    When 사용자가 "주문내역" 내 상품을 확인하고 클릭한다
+    When 사용자가 최근본 상품을 확인하고 클릭한다
     Then 상품 페이지로 이동되었다
     Then 모든 트래킹 로그를 JSON 파일로 저장함
     And Product Click 로그가 정합성 검증을 통과해야 함 (TC: C1166950)

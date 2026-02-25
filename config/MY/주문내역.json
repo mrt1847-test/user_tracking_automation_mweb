@@ -80,9 +80,9 @@
             "webkit",
             "chrome"
           ],
-          "spm-url": "gmktpc.myaccount.0.0",
-          "spm-pre": "gmktpc.home.0.0",
-          "spm-cnt": "gmktpc.orderlist.0.0",
+          "spm-url": "",
+          "spm-pre": "",
+          "spm-cnt": "gmktm.orderlist.0.0",
           "pid": "my_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
@@ -96,9 +96,7 @@
       "scr": "mandatory",
       "ts": "mandatory",
       "uidaplus": "11758850530814005372000000",
-      "spm-cnt": "gmktpc.orderlist.0.0",
-      "spm-url": "gmktpc.myaccount.0.0",
-      "spm-pre": "gmktpc.home.0.0"
+      "spm-cnt": "gmktm.orderlist.0.0"
     }
   },
   "product_exposure": {
@@ -155,9 +153,9 @@
                   "sort": "",
                   "searchScenario": "",
                   "pvid_sys": "gmarket server",
-                  "origin_price": "skip",
-                  "coupon_price": "skip",
-                  "promotion_price": "skip",
+                  "origin_price": "<원가>",
+                  "coupon_price": "<쿠폰적용가>",
+                  "promotion_price": "<할인가>",
                   "trafficType": "<trafficType>",
                   "adProduct": "",
                   "adSubProduct": "",
@@ -172,14 +170,14 @@
               "_p_prod": "<상품번호>",
               "is_ad": "<is_ad>",
               "content": "",
-              "gmkt_area_code": "200010823",
+              "gmkt_area_code": "200011661",
               "channel_code": "200003514"
             },
             "raw": "mandatory"
           }
         },
         "scm": "",
-        "spm": "gmktpc.orderlist.orderlistall.ditem0"
+        "spm": "gmktm.orderlist.orderlistall.ditem0"
       },
       "raw": "mandatory"
     },
@@ -229,9 +227,9 @@
       "webkit",
       "chrome"
     ],
-    "spm-cnt": "gmktpc.orderlist.0.0",
-    "spm-url": "gmktpc.myaccount.0.0",
-    "spm-pre": "gmktpc.home.0.0",
+    "spm-cnt": "gmktm.orderlist.0.0",
+    "spm-url": "",
+    "spm-pre": "",
     "pid": "my_gmarket_co_kr",
     "channel_code": "200003514",
     "server_env": "<environment>"
@@ -305,9 +303,9 @@
             "sort": "",
             "searchScenario": "",
             "pvid_sys": "gmarket server",
-            "origin_price": "skip",
-            "coupon_price": "skip",
-            "promotion_price": "skip",
+            "origin_price": "<원가>",
+            "coupon_price": "<쿠폰적용가>",
+            "promotion_price": "<할인가>",
             "trafficType": "<trafficType>",
             "adProduct": "",
             "adSubProduct": "",
@@ -322,7 +320,7 @@
         "_p_prod": "<상품번호>",
         "is_ad": "<is_ad>",
         "content": "",
-        "gmkt_area_code": "200010823",
+        "gmkt_area_code": "200011661",
         "channel_code": "200003514"
       },
       "raw": "mandatory"
@@ -346,13 +344,13 @@
       "webkit",
       "chrome"
     ],
-    "spm-cnt": "gmktpc.orderlist.0.0",
-    "spm-url": "gmktpc.myaccount.0.0",
-    "spm-pre": "gmktpc.home.0.0",
+    "spm-cnt": "gmktm.orderlist.0.0",
+    "spm-url": "",
+    "spm-pre": "",
     "pid": "my_gmarket_co_kr",
     "channel_code": "200003514",
     "server_env": "<environment>",
-    "spm": "gmktpc.orderlist.orderlistall.ditem0"
+    "spm": "gmktm.orderlist.orderlistall.ditem0"
   },
   "product_atc_click": {
     "payload": {
@@ -424,9 +422,9 @@
                   "sort": "",
                   "searchScenario": "",
                   "pvid_sys": "gmarket server",
-                  "origin_price": "skip",
-                  "coupon_price": "skip",
-                  "promotion_price": "skip",
+                  "origin_price": "<원가>",
+                  "coupon_price": "<쿠폰적용가>",
+                  "promotion_price": "<할인가>",
                   "trafficType": "<trafficType>",
                   "adProduct": "",
                   "adSubProduct": "",
@@ -441,7 +439,7 @@
               "_p_prod": "<상품번호>",
               "is_ad": "<is_ad>",
               "content": "",
-              "gmkt_area_code": "200010825",
+              "gmkt_area_code": "200004889",
               "channel_code": "200003514",
               "is_airticket": "N"
             },
@@ -464,13 +462,13 @@
             "webkit",
             "chrome"
           ],
-          "spm-url": "gmktpc.myaccount.0.0",
-          "spm-pre": "gmktpc.home.0.0",
-          "spm-cnt": "gmktpc.orderlist.0.0",
+          "spm-url": "",
+          "spm-pre": "",
+          "spm-cnt": "gmktm.orderlist.0.0",
           "pid": "my_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktpc.orderlist.orderlistall.ditem0"
+          "spm": "gmktm.orderlist.orderlistall.ditem0"
         }
       },
       "gmkey": "CLK",
@@ -480,9 +478,7 @@
       "scr": "mandatory",
       "ts": "mandatory",
       "uidaplus": "11758850530814005372000000",
-      "spm-cnt": "gmktpc.orderlist.0.0",
-      "spm-url": "gmktpc.myaccount.0.0",
-      "spm-pre": "gmktpc.home.0.0"
+      "spm-cnt": "gmktm.orderlist.0.0"
     }
   }
 }

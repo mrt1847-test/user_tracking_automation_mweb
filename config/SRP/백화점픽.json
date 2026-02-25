@@ -1,0 +1,102 @@
+{
+    "module_exposure": {
+      "payload": {
+        "gmkey": "EXP",
+        "ts": "mandatory",
+        "rd": "mandatory",
+        "gokey": "mandatory",
+        "cna": "mandatory",
+        "spm-cnt": "gmktpc.searchlist.0",
+        "spm-url": "gmktpc.home.searchtop.dsearchbox",
+        "_gr_uid_": "11758850530814005372000000",
+        "uidaplus": "11758850530814005372000000",
+        "logtype": "2",
+        "scr": "mandatory",
+        "_p_url": "mandatory",
+        "decoded_gokey": {
+          "decoded_gokey": "mandatory",
+          "params": {
+            "uidaplus": "11758850530814005372000000",
+            "spm-url": "gmktpc.home.searchtop.dsearchbox",
+            "spm-pre": "",
+            "spm-cnt": "gmktpc.searchlist.0",
+            "_f_t": "false",
+            "pid": "www_gmarket_co_kr",
+            "cguid": "11758850530814005372000000",
+            "pguid": "skip",
+            "sguid": "skip",
+            "channel_code": "200003514",
+            "st_page_id": "mandatory",
+            "server_env": "<environment>",
+            "_is_auto_exp": "1",
+            "_eventType": "IObserver",
+            "_method": "POST",
+            "is_auto": "1",
+            "scm": "",
+            "spm": "gmktm.searchlist.fashionnewarrivalsitem",
+            "_w": "mandatory",
+            "_h": "mandatory",
+            "_x": "mandatory",
+            "_y": "mandatory",
+            "_rate": "mandatory",
+            "_viewability": "intersection",
+            "params-exp": {
+              "raw": "mandatory",
+              "parsed": {
+                "gmkt_page_id": "",
+                "gmkt_area_code": "",
+                "section_index": "",
+                "module_index": "mandatory",
+                "ab_buckets": "skip"
+              }
+            },
+            "cache": "mandatory",
+            "jsver": "aplus.js",
+            "lver": "1.13.26-1",
+            "customSdkId": "",
+            "platformType": [
+              "pc",
+              "mac"
+            ],
+            "device_model": [
+              "Windows",
+              "Macintosh"
+            ],
+            "os": [
+              "Windows",
+              "Mac OS X"
+            ],
+            "os_version": [
+              "win10",
+              "10.15.7"
+            ],
+            "language": [
+              "ko-KR",
+              "en-US"
+            ],
+            "o": [
+              "win10",
+              "mac"
+            ],
+            "w": [
+              "webkit",
+              "chrome"
+            ],
+            "s": "1280x720",
+            "scr": "mandatory",
+            "m": "360ee",
+            "ism": [
+              "pc",
+              "mac"
+            ],
+            "p": "1",
+            "b": "mandatory",
+            "tag": "1",
+            "stag": "-1",
+            "lstag": "-1",
+            "_g_encode": "utf-8"
+          }
+        }
+      }
+    }
+}

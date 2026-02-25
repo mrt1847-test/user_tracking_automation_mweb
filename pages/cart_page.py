@@ -71,10 +71,10 @@ class CartPage(BasePage):
         else:
             n = f"{n}"
         
-        logger.info("그룹 옵션레이어 클릭 시도 (.button__select.sprite)")
+        logger.debug("그룹 옵션레이어 클릭 시도 (.button__select.sprite)")
         select_btn = self.page.locator(".button__select.sprite > .box__thumbnail").first
         select_btn.click()
-        logger.info("그룹 옵션 버튼 클릭 완료")
+        logger.debug("그룹 옵션 버튼 클릭 완료")
 
         # span.text__name "상품 선택" 이 나타날 때까지 대기 (옵션 레이어 표시)
         option_layer = self.page.locator("span.text__name", has_text="상품 선택")
@@ -127,12 +127,15 @@ class CartPage(BasePage):
         Args:
             timeout: 타임아웃 (기본값: 10000ms)
         """
+        # link__cart(acode=200004339) / btn-cart(acode=200004438) 등 장바구니 링크 공통 (복수 매칭 시 첫 번째 사용)
         cart_link = (
             self.page.locator('a.link__cart[data-montelena-acode="200004339"]')
+            .or_(self.page.locator('a.link__cart[data-montelena-type="core"]'))
             .or_(self.page.locator("a.link__cart"))
+            .or_(self.page.locator('a.btn-cart[data-montelena-acode="200004438"]'))
+            .or_(self.page.locator("a.btn-cart"))
             .or_(self.page.locator('a[href*="cart.gmarket.co.kr"]'))
-            .or_(self.page.locator('a[title="장바구니"]'))
-        )
+        ).first
         logger.debug("장바구니 링크 클릭")
         cart_link.wait_for(state="attached", timeout=timeout)
         cart_link.click(timeout=timeout)
@@ -154,12 +157,15 @@ class CartPage(BasePage):
         
         if module_title == "장바구니 최저가":
             locator = self.page.locator(".text__title strong", has_text="최저가")
+        elif module_title == "장바구니 BT":
+            locator = self.page.locator(".text__title", has_text="다른 고객 장바구니 보기")
         else:
             locator = self.page.locator(".text__title", has_text=module_title)
         
         # 모듈이 나타날 때까지 대기
         logger.debug(f"모듈 노출 대기 중: {module_title}")
         locator.wait_for(state="visible", timeout=timeout)
+        locator.scroll_into_view_if_needed(timeout=timeout)
         logger.info(f"모듈 노출 확인됨: {module_title}")
         
         return locator
@@ -181,6 +187,7 @@ class CartPage(BasePage):
 
         MODULE_AD_CHECK = {
             "장바구니 최저가": "N",
+            "장바구니 BT": "Y"
         }
         
         if modulel_title not in MODULE_AD_CHECK:

@@ -85,7 +85,7 @@
           "pid": "m_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktm.searchlist.toporganictier"
+          "spm": "gmktm.searchlist.cpczero"
         }
       },
       "gmkey": "EXP",
@@ -146,6 +146,8 @@
                   "x_object_type": "item",
                   "x_sku_id": "0",
                   "sub_scene": "main_srp",
+                  "adProduct": "N",
+                  "adSubProduct": "A",
                   "trafficType": "<trafficType>",
                   "sort": "popularity",
                   "scene": "search",
@@ -162,7 +164,7 @@
                 },
                 "raw": "mandatory"
               },
-              "gmkt_area_code": "200013943",
+              "gmkt_area_code": "200008751",
               "is_ad": "<is_ad>",
               "_p_prod": "<상품번호>"
             },
@@ -170,7 +172,7 @@
           }
         },
         "scm": "",
-        "spm": "gmktm.searchlist.toporganictier.d0_0"
+        "spm": "gmktm.searchlist.cpczero.d0_0"
       },
       "raw": "mandatory"
     },
@@ -289,6 +291,8 @@
             "x_object_type": "item",
             "x_sku_id": "0",
             "sub_scene": "main_srp",
+            "adProduct": "N",
+            "adSubProduct": "A",
             "trafficType": "<trafficType>",
             "sort": "popularity",
             "scene": "search",
@@ -305,7 +309,7 @@
           },
           "raw": "mandatory"
         },
-        "gmkt_area_code": "200013943",
+        "gmkt_area_code": "200008751",
         "is_ad": "<is_ad>",
         "_p_prod": "<상품번호>"
       },
@@ -336,7 +340,7 @@
     "pid": "m_gmarket_co_kr",
     "channel_code": "200003514",
     "server_env": "<environment>",
-    "spm": "gmktm.searchlist.toporganictier.d0_0"
+    "spm": "gmktm.searchlist.cpczero.d0_0"
   },
   "product_atc_click": {
     "payload": {
@@ -401,6 +405,8 @@
                   "x_object_type": "item",
                   "x_sku_id": "0",
                   "sub_scene": "main_srp",
+                  "adProduct": "N",
+                  "adSubProduct": "A",
                   "trafficType": "<trafficType>",
                   "sort": "popularity",
                   "scene": "search",
@@ -447,7 +453,7 @@
           "pid": "m_gmarket_co_kr",
           "channel_code": "200003514",
           "server_env": "<environment>",
-          "spm": "gmktm.searchlist.toporganictier.d0_0"
+          "spm": "gmktm.searchlist.cpczero.d0_0"
         }
       },
       "gmkey": "CLK",

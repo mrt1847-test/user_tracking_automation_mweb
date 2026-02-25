@@ -90,7 +90,7 @@ def product_page_is_opened(browser_session, bdd_context):
         
         # bdd context에서 값 가져오기 (store 또는 딕셔너리 방식 모두 지원)
         goodscode = bdd_context.store.get('goodscode') or bdd_context.get('goodscode')
-        url = bdd_context.store.get('product_url') or browser_session.page.url
+        stored_url = bdd_context.store.get('product_url')
         
         if not goodscode:
             # goodscode가 없으면 이전 스텝에서 실패했을 가능성
@@ -98,15 +98,23 @@ def product_page_is_opened(browser_session, bdd_context):
             bdd_context['frontend_action_failed'] = True
             bdd_context['frontend_error_message'] = "goodscode가 설정되지 않았습니다."
             return
-        
+
+        goodscode_str = str(goodscode).strip()
+
+        if stored_url:
+            url = stored_url
+        else:
+            # product_url이 없으면 현재 페이지에서 URL 전환 대기 후 수집 (타이밍 이슈 방지)
+            try:
+                browser_session.page.wait_for_url(f"*{goodscode_str}*", timeout=15000)
+                logger.debug("상품 페이지 URL 전환 대기 완료")
+            except Exception as e:
+                logger.warning(f"URL 전환 대기 실패: {e}")
+            url = browser_session.page.url
+
         # 검증 (실패 시 예외 발생)
         try:
-            if url:
-                product_page.verify_product_code_in_url(url, goodscode)
-            else:
-                # URL이 없으면 현재 페이지 URL에서 확인
-                current_url = browser_session.page.url
-                product_page.verify_product_code_in_url(current_url, goodscode)
+            product_page.verify_product_code_in_url(url or "", goodscode_str)
         except AssertionError as e:
             logger.error(f"상품 페이지 이동 확인 실패: {e}")
             record_frontend_failure(browser_session, bdd_context, f"상품 페이지 이동 확인 실패: {str(e)}", "상품 페이지로 이동되었다")
@@ -202,17 +210,19 @@ def user_confirms_and_clicks_product_in_pdp_module(browser_session, module_title
   
         # 모듈 내 상품 찾기
         if module_title == "이 판매자의 인기상품이에요":
-            product = module
+            product = product_page.get_product_in_module(module)
         elif module_title == "연관상품":
             parent = product_page.get_module_parent(module, 3)
         else:
             parent = product_page.get_module_parent(module, 2)
 
-        #상품으로 이동       
+        #상품으로 이동
         if module_title == "연관상품 상세보기":
             product = product_page.get_product_in_related_module(parent)
         elif module_title == "BuyBox":
             product = product_page.get_product_in_cheaper_module(module)
+        elif module_title == "이 판매자의 인기상품이에요":
+             pass # product는 위에서 module로 이미 설정됨
         else:
             product = product_page.get_product_in_module(parent)
         product_page.scroll_product_into_view(product)
@@ -237,6 +247,8 @@ def user_confirms_and_clicks_product_in_pdp_module(browser_session, module_title
             is_ad = product_page.check_ad_tag_in_product(product)
         else:
             is_ad = ad_check
+
+        product_page.click_cart_button(product)
         # 상품 클릭
         try:
                         

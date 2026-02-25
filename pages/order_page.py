@@ -39,7 +39,7 @@ class OrderPage(BasePage):
             False: 주문완료 페이지가 표시되지 않았음
         """
         logger.debug("주문완료 페이지 표시 확인")
-        return self.is_visible("box__title:has-text('주문완료')")
+        return self.is_visible(".box__title:has-text('주문완료')")
     
     def get_spmc_by_module_title(self, module_title: str) -> str:
         """

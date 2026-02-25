@@ -294,10 +294,11 @@ class ProductPage(BasePage):
         
         Args:
             url: 확인할 URL
-            goodscode: 상품 번호
+            goodscode: 상품 번호 (str 또는 int, 앞뒤 공백 제거 후 비교)
         """
-        logger.debug(f"URL에 상품 번호 포함 확인: {goodscode}")
-        assert goodscode in url, f"상품 번호 {goodscode}가 URL에 포함되어야 합니다"
+        code = str(goodscode).strip()
+        logger.debug(f"URL에 상품 번호 포함 확인: {code}")
+        assert code in (url or ""), f"상품 번호 {code}가 URL에 포함되어야 합니다"
 
     def check_ad_item_in_module(self, modulel_title: str) -> str:
         """
@@ -510,7 +511,7 @@ class ProductPage(BasePage):
         """
         logger.debug("장바구니 버튼 클릭")
         try:
-            location.locator("xpath =/..").locator(".button__cart").nth(0).tap()
+            location.locator("xpath =/..").locator(".button__cart").nth(0).tap(timeout=3000)
             logger.info(f"장바구니 버튼 클릭 성공")
         except Exception as e:
             logger.warning(f"장바구니 버튼 클릭 실패하였으나 계속 진행: error={e}")

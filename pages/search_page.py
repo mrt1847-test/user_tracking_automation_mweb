@@ -516,10 +516,11 @@ class SearchPage(BasePage):
         
         Args:
             url: 확인할 URL
-            goodscode: 상품 번호
+            goodscode: 상품 번호 (str 또는 int, 앞뒤 공백 제거 후 비교)
         """
-        logger.debug(f"URL에 상품 번호 포함 확인: {goodscode}")
-        assert goodscode in url, f"상품 번호 {goodscode}가 URL에 포함되어야 합니다"
+        code = str(goodscode).strip()
+        logger.debug(f"URL에 상품 번호 포함 확인: {code}")
+        assert code in url, f"상품 번호 {code}가 URL에 포함되어야 합니다"
 
     def go_to_top_search_module_page(self, keyword: str, goodscode: str):
         """
