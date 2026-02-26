@@ -24,12 +24,14 @@
           "customSdkId": "",
           "device_model": [
             "Windows",
-            "Macintosh"
+            "Macintosh",
+            "iPhone"
           ],
           "is_auto": "1",
           "ism": [
             "pc",
-            "mac"
+            "mac",
+            "iphone"
           ],
           "jsver": "aplus.js",
           "language": [
@@ -41,15 +43,18 @@
           "m": "360ee",
           "o": [
             "win10",
-            "mac"
+            "mac",
+            "ios16"
           ],
           "os": [
             "Windows",
-            "Mac OS X"
+            "Mac OS X",
+            "IOS"
           ],
           "os_version": [
             "win10",
-            "10.15.7"
+            "10.15.7",
+            "16.0"
           ],
           "p": "1",
           "params-exp": {
@@ -65,7 +70,8 @@
           "pguid": "skip",
           "platformType": [
             "pc",
-            "mac"
+            "mac",
+            "wap"
           ],
           "s": "1280x720",
           "scm": "",
@@ -157,7 +163,7 @@
                   "pvid_sys": "aidc server",
                   "origin_price": "<원가>",
                   "promotion_price": "<할인가>",
-                  "coupon_price": "skip",
+                  "coupon_price": "<쿠폰적용가>",
                   "trafficType": "<trafficType>",
                   "adProduct": "J",
                   "adSubProduct": "A",
@@ -328,7 +334,7 @@
             "pvid_sys": "aidc server",
             "origin_price": "<원가>",
             "promotion_price": "<할인가>",
-            "coupon_price": "skip",
+            "coupon_price": "<쿠폰적용가>",
             "trafficType": "<trafficType>",
             "adProduct": "J",
             "adSubProduct": "A",

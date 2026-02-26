@@ -326,34 +326,50 @@ class NetworkTracker:
             decoded_gokey = unquote(gokey)
             decoded_data['decoded_gokey'] = decoded_gokey
             
-            # 2. gokey를 &로 분리하여 각 파라미터 파싱
+            # 2. gokey 파싱 (expdata 값 안에 &가 있으므로 단순 split('&') 시 잘림 → 괄호 균형으로 값 경계 판단)
             params = {}
-            for item in decoded_gokey.split('&'):
-                if '=' in item:
-                    key, value = item.split('=', 1)
-                    decoded_key = unquote(key)
+            tokens = decoded_gokey.split('&')
+            i = 0
+            while i < len(tokens):
+                item = tokens[i]
+                if '=' not in item:
+                    i += 1
+                    continue
+                key, value = item.split('=', 1)
+                decoded_key = unquote(key)
+                decoded_value = unquote(value)
+                # expdata 값은 JSON 배열 [...] 인데, 내부에 &가 있어서 다음 토큰까지 이어붙여야 함
+                if decoded_key == 'expdata' and decoded_value.strip().startswith('['):
+                    while value.count('[') != value.count(']') and i + 1 < len(tokens):
+                        i += 1
+                        value += '&' + tokens[i]
                     decoded_value = unquote(value)
-                    
-                    # expdata는 JSON 파싱 및 내부 디코딩 필요
-                    if decoded_key == 'expdata':
-                        decoded_expdata = self._decode_expdata(decoded_value)
-                        params[decoded_key] = {
-                            'raw': decoded_value,
-                            'parsed': decoded_expdata
-                        }
-                    # params-clk 또는 params-exp 같은 파라미터는 추가 디코딩 필요
-                    elif decoded_key in ['params-clk', 'params-exp']:
-                        decoded_params = self._decode_params_exp_or_clk(decoded_value)
-                        params[decoded_key] = {
-                            'raw': decoded_value,
-                            'parsed': decoded_params
-                        }
-                    # 그 외: JSON 형태로 보이는 문자열은 범용 파싱 → 재귀 탐색(_find_value_recursive)이 _p_prod/x_object_id 등 자동 발견
-                    elif isinstance(decoded_value, str) and self._looks_like_json_string(decoded_value):
-                        parsed_any = self._parse_json_param(decoded_value)
-                        params[decoded_key] = {'raw': decoded_value, 'parsed': parsed_any} if parsed_any is not None else decoded_value
-                    else:
-                        params[decoded_key] = decoded_value
+                    decoded_expdata = self._decode_expdata(decoded_value)
+                    params[decoded_key] = {'raw': decoded_value, 'parsed': decoded_expdata}
+                    i += 1
+                    continue
+                # params-clk, params-exp도 값에 & 포함 가능
+                if decoded_key in ['params-clk', 'params-exp']:
+                    # 값이 객체/쿼리 형태로 & 포함할 수 있음; 다음 key= 나올 때까지 묶기 (휴리스틱: = 이 나오되 키가 짧은 경우)
+                    while i + 1 < len(tokens):
+                        next_tok = tokens[i + 1]
+                        if '=' in next_tok:
+                            next_key = next_tok.split('=', 1)[0]
+                            if next_key and len(unquote(next_key)) <= 20 and not next_key.strip().startswith('['):
+                                break
+                        value += '&' + next_tok
+                        i += 1
+                    decoded_value = unquote(value)
+                    decoded_params = self._decode_params_exp_or_clk(decoded_value)
+                    params[decoded_key] = {'raw': decoded_value, 'parsed': decoded_params}
+                    i += 1
+                    continue
+                if isinstance(decoded_value, str) and self._looks_like_json_string(decoded_value):
+                    parsed_any = self._parse_json_param(decoded_value)
+                    params[decoded_key] = {'raw': decoded_value, 'parsed': parsed_any} if parsed_any is not None else decoded_value
+                else:
+                    params[decoded_key] = decoded_value
+                i += 1
             
             decoded_data['params'] = params
             
@@ -378,7 +394,7 @@ class NetworkTracker:
             return payload
         
         decoded_payload = payload.copy()
-        
+
         # gokey가 있으면 디코딩
         if 'gokey' in payload and payload['gokey']:
             try:
@@ -387,7 +403,27 @@ class NetworkTracker:
                 logger.debug(f'gokey 디코딩 완료: {list(decoded_gokey_info.get("params", {}).keys())}')
             except Exception as e:
                 logger.warning(f'gokey 디코딩 실패: {e}')
-        
+
+        # Product Exposure: JSON body로 오는 경우 payload 최상위에 expdata만 있을 수 있음 → decoded_gokey.params에 보정
+        decoded_gokey = decoded_payload.get('decoded_gokey') or {}
+        params = decoded_gokey.get('params') or {}
+        if not params.get('expdata') and payload.get('expdata'):
+            raw_exp = payload['expdata']
+            if isinstance(raw_exp, str):
+                parsed_exp = self._decode_expdata(raw_exp)
+            elif isinstance(raw_exp, list):
+                parsed_exp = raw_exp  # 이미 배열로 파싱된 경우 그대로 사용
+            else:
+                parsed_exp = None
+            if parsed_exp is not None:
+                if not isinstance(decoded_payload.get('decoded_gokey'), dict):
+                    decoded_payload['decoded_gokey'] = decoded_gokey if decoded_gokey else {}
+                decoded_payload['decoded_gokey'].setdefault('params', {})['expdata'] = {
+                    'raw': raw_exp if isinstance(raw_exp, str) else json.dumps(raw_exp),
+                    'parsed': parsed_exp,
+                }
+                logger.debug('Product Exposure: payload.expdata를 decoded_gokey.params.expdata로 보정함')
+
         return decoded_payload
     
     def _parse_query_string(self, query_string: str) -> Dict[str, Any]:
@@ -824,27 +860,33 @@ class NetworkTracker:
             # Product Exposure의 경우: expdata.parsed 배열의 모든 항목을 재귀적으로 확인
             if request_type == 'Product Exposure':
                 payload = log.get('payload', {})
-                decoded_gokey = payload.get('decoded_gokey', {})
+                parsed_list = None
+                decoded_gokey = payload.get('decoded_gokey', {}) if isinstance(payload, dict) else {}
                 if isinstance(decoded_gokey, dict):
                     params = decoded_gokey.get('params', {})
                     if isinstance(params, dict):
                         expdata = params.get('expdata', {})
                         if isinstance(expdata, dict) and 'parsed' in expdata:
                             parsed_list = expdata.get('parsed', [])
-                            if isinstance(parsed_list, list):
-                                # 배열의 모든 항목에서 재귀적으로 goodscode 확인
-                                found = False
-                                for item in parsed_list:
-                                    # 각 항목에서 재귀적으로 _p_prod 우선, 없으면 x_object_id 찾기
-                                    item_goodscode = self._find_value_recursive(item, ['_p_prod'])
-                                    if not item_goodscode:
-                                        item_goodscode = self._find_value_recursive(item, ['x_object_id'])
-                                    if item_goodscode and str(item_goodscode) == str(goodscode):
-                                        found = True
-                                        break
-                                if found:
-                                    filtered_logs.append(log)
-                                continue
+                # 자동화 등에서 payload 최상위 expdata로만 올 수 있음 (decoded_gokey.params에 없음)
+                if not parsed_list and isinstance(payload, dict) and payload.get('expdata'):
+                    raw_exp = payload['expdata']
+                    if isinstance(raw_exp, str):
+                        parsed_list = self._decode_expdata(raw_exp) or []
+                    elif isinstance(raw_exp, list):
+                        parsed_list = raw_exp
+                if isinstance(parsed_list, list):
+                    found = False
+                    for item in parsed_list:
+                        item_goodscode = self._find_value_recursive(item, ['_p_prod'])
+                        if not item_goodscode:
+                            item_goodscode = self._find_value_recursive(item, ['x_object_id'])
+                        if item_goodscode and str(item_goodscode) == str(goodscode):
+                            found = True
+                            break
+                    if found:
+                        filtered_logs.append(log)
+                    continue
             
             # 그 외의 경우: 기존 방식으로 goodscode 추출 및 비교
             log_goodscode = self._extract_goodscode_from_log(log)
@@ -1084,7 +1126,7 @@ class NetworkTracker:
     def get_product_exposure_logs_by_goodscode(self, goodscode: str, spm: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         goodscode 기준으로 Product Exposure 로그만 반환
-        spm이 제공되면 추가로 필터링
+        spm이 제공되면 **SPM 우선** 필터: 전체 Product Exposure 로그에서 exargs 단위로 SPM 매칭 후 goodscode 매칭
         
         Args:
             goodscode: 상품 번호
@@ -1093,34 +1135,56 @@ class NetworkTracker:
         Returns:
             해당 goodscode의 Product Exposure 로그 리스트
         """
-        logs = self.get_logs_by_goodscode(goodscode, 'Product Exposure')
-        
-        # spm 필터링이 없으면 바로 반환
+        # spm이 없으면 goodscode로만 필터링 (기존 방식)
         if not spm:
+            logs = self.get_logs_by_goodscode(goodscode, 'Product Exposure')
+            logger.info(f"Product Exposure 로그 (goodscode 기준): {len(logs)}개")
             return logs
-        
+
+        # spm이 있으면 SPM 우선: 전체 Product Exposure 로그를 먼저 수집한 뒤, exargs 단위로 SPM → goodscode 필터
+        # (한 요청에 여러 SPM이 섞여 있어 goodscode 선필터 시 로그를 못 찾을 수 있음)
+        logs = self.get_logs('Product Exposure')
         filtered_logs = []
         total_items = 0
         matched_items = 0
-        
+
         for log in logs:
-            # 로그 복사 (원본 수정 방지)
             filtered_log = copy.deepcopy(log)
-            
-            # expdata.parsed 배열에서 goodscode와 spm이 모두 매칭되는 항목만 필터링
             payload = filtered_log.get('payload', {})
-            decoded_gokey = payload.get('decoded_gokey', {})
+            decoded_gokey = payload.get('decoded_gokey', {}) or {}
             params = decoded_gokey.get('params', {}) if isinstance(decoded_gokey, dict) else {}
             expdata = params.get('expdata', {}) if isinstance(params, dict) else {}
-            
+            # 자동화 등에서 payload 최상위 expdata로만 올 수 있음 → decoded_gokey.params에 보정
+            if (not expdata or not expdata.get('parsed')) and isinstance(payload, dict) and payload.get('expdata'):
+                raw_exp = payload['expdata']
+                if isinstance(raw_exp, str):
+                    parsed_fallback = self._decode_expdata(raw_exp) or []
+                elif isinstance(raw_exp, list):
+                    parsed_fallback = raw_exp
+                else:
+                    parsed_fallback = []
+                if not isinstance(decoded_gokey, dict):
+                    payload['decoded_gokey'] = {}
+                    decoded_gokey = payload['decoded_gokey']
+                decoded_gokey.setdefault('params', {})['expdata'] = {
+                    'raw': raw_exp if isinstance(raw_exp, str) else json.dumps(raw_exp),
+                    'parsed': parsed_fallback,
+                }
+                expdata = decoded_gokey['params']['expdata']
+
             filtered_items = []
             if isinstance(expdata, dict) and 'parsed' in expdata:
                 parsed_list = expdata.get('parsed', [])
                 if isinstance(parsed_list, list):
                     for item in parsed_list:
                         total_items += 1
-                        
-                        # 항목에서 goodscode 추출
+
+                        # 1) SPM 우선: 타겟 SPM과 매칭되지 않으면 제외
+                        item_spm = self._extract_spm_from_product_exposure_item(item)
+                        if not item_spm or not self._check_spm_match(item_spm, spm):
+                            continue
+
+                        # 2) exargs에서 상품번호(goodscode) 추출
                         item_goodscode = None
                         if isinstance(item, dict) and 'exargs' in item:
                             exargs = item.get('exargs', {})
@@ -1129,42 +1193,30 @@ class NetworkTracker:
                                 if isinstance(params_exp, dict) and 'parsed' in params_exp:
                                     parsed = params_exp.get('parsed', {})
                                     if isinstance(parsed, dict):
-                                        # _p_prod 우선 확인
                                         if '_p_prod' in parsed:
                                             item_goodscode = str(parsed['_p_prod'])
-                                        # 없으면 utLogMap.x_object_id 확인
                                         elif 'utLogMap' in parsed:
                                             utlogmap = parsed.get('utLogMap', {})
                                             if isinstance(utlogmap, dict) and 'parsed' in utlogmap:
                                                 utlogmap_parsed = utlogmap.get('parsed', {})
                                                 if isinstance(utlogmap_parsed, dict) and 'x_object_id' in utlogmap_parsed:
                                                     item_goodscode = str(utlogmap_parsed['x_object_id'])
-                        
-                        # goodscode가 일치하는지 확인
-                        if item_goodscode != goodscode:
-                            continue
-                        
-                        # spm 추출 및 매칭 확인
-                        item_spm = self._extract_spm_from_product_exposure_item(item)
-                        if item_spm:
-                            if self._check_spm_match(item_spm, spm):
-                                filtered_items.append(item)
-                                matched_items += 1
-                                logger.debug(f"Product Exposure 매칭: goodscode={item_goodscode}, spm={item_spm}, target_spm={spm}")
-                            else:
-                                logger.debug(f"Product Exposure SPM 필터링 불일치: goodscode={item_goodscode}, item_spm='{item_spm}', target_spm='{spm}'")
-                        else:
-                            logger.debug(f"Product Exposure SPM 추출 실패: goodscode={item_goodscode}")
-            
-            # 필터링된 항목이 있으면 로그에 반영
+
+                        # 3) goodscode가 타겟과 일치하는 항목만 포함 (SPM 이미 매칭됨)
+                        if item_goodscode == goodscode:
+                            filtered_items.append(item)
+                            matched_items += 1
+                            logger.debug(f"Product Exposure 매칭: spm={item_spm}, goodscode={item_goodscode}, target_spm={spm}")
+
             if filtered_items:
                 expdata['parsed'] = filtered_items
                 filtered_logs.append(filtered_log)
             else:
-                logger.debug(f"Product Exposure 로그 필터링 제외: goodscode={goodscode}, spm={spm}와 매칭되는 항목 없음")
-        
-        logger.info(f"SPM '{spm}'로 필터링된 Product Exposure 로그: {len(filtered_logs)}/{len(logs)}개 (매칭된 항목: {matched_items}/{total_items}개)")
-        
+                logger.debug(f"Product Exposure 로그 제외: goodscode={goodscode}, target_spm={spm}와 매칭되는 exargs 없음")
+
+        logger.info(
+            f"SPM '{spm}'로 필터링된 Product Exposure 로그: {len(filtered_logs)}/{len(logs)}개 (매칭된 항목: {matched_items}/{total_items}개)"
+        )
         return filtered_logs
     
     def get_product_click_logs_by_goodscode(self, goodscode: str) -> List[Dict[str, Any]]:

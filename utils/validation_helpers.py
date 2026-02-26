@@ -443,7 +443,7 @@ def replace_placeholders(value: Any, goodscode: str, frontend_data: Optional[Dic
                     coupon_price_str = str(coupon_price)
                 value = value.replace('<쿠폰적용가>', coupon_price_str)
             
-            # <is_ad> placeholder 치환
+            # <is_ad> placeholder 치환 (bdd_context에 있는 is_ad로만 대체, 없으면 대체하지 않음)
             if '<is_ad>' in value and 'is_ad' in frontend_data:
                 is_ad_value = frontend_data.get('is_ad')
                 if is_ad_value is not None:

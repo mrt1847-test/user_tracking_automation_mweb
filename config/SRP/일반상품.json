@@ -24,12 +24,14 @@
           "customSdkId": "",
           "device_model": [
             "Windows",
-            "Macintosh"
+            "Macintosh",
+            "iPhone"
           ],
           "is_auto": "1",
           "ism": [
             "pc",
-            "mac"
+            "mac",
+            "iphone"
           ],
           "jsver": "aplus.js",
           "language": [
@@ -38,18 +40,24 @@
           ],
           "lstag": "-1",
           "lver": "1.13.26-1",
-          "m": "360ee",
+          "m": [
+            "360ee",
+            ""
+          ],
           "o": [
             "win10",
-            "mac"
+            "mac",
+            "ios16"
           ],
           "os": [
             "Windows",
-            "Mac OS X"
+            "Mac OS X",
+            "IOS"
           ],
           "os_version": [
             "win10",
-            "10.15.7"
+            "10.15.7",
+            "16.0"
           ],
           "p": "1",
           "params-exp": {
@@ -65,9 +73,13 @@
           "pguid": "skip",
           "platformType": [
             "pc",
-            "mac"
+            "mac",
+            "wap"
           ],
-          "s": "1280x720",
+          "s": [
+            "1280x720",
+            "390x844"
+          ],
           "scm": "",
           "scr": "mandatory",
           "sguid": "skip",
@@ -116,7 +128,8 @@
     "customSdkId": "",
     "device_model": [
       "Windows",
-      "Macintosh"
+      "Macintosh",
+      "iPhone"
     ],
     "expdata": {
       "parsed[0]": {
@@ -178,7 +191,8 @@
     "gokey": "mandatory",
     "ism": [
       "pc",
-      "mac"
+      "mac",
+      "iphone"
     ],
     "jsver": "aplus.js",
     "language": [
@@ -188,27 +202,37 @@
     "logtype": "2",
     "lstag": "-1",
     "lver": "1.13.26-1",
-    "m": "360ee",
+    "m": [
+      "360ee",
+      ""
+    ],
     "o": [
       "win10",
-      "mac"
+      "mac",
+      "ios16"
     ],
     "os": [
       "Windows",
-      "Mac OS X"
+      "Mac OS X",
+      "IOS"
     ],
     "os_version": [
       "win10",
-      "10.15.7"
+      "10.15.7",
+      "16.0"
     ],
     "p": "1",
     "pguid": "skip",
     "platformType": [
       "pc",
-      "mac"
+      "mac",
+      "wap"
     ],
     "rd": "mandatory",
-    "s": "1280x720",
+    "s": [
+      "1280x720",
+      "390x844"
+    ],
     "scr": "mandatory",
     "sguid": "skip",
     "st_page_id": "mandatory",
@@ -240,13 +264,15 @@
     "customSdkId": "",
     "device_model": [
       "Windows",
-      "Macintosh"
+      "Macintosh",
+      "iPhone"
     ],
     "gmkey": "CLK",
     "gokey": "mandatory",
     "ism": [
       "pc",
-      "mac"
+      "mac",
+      "iphone"
     ],
     "jsver": "aplus.js",
     "language": [
@@ -256,18 +282,24 @@
     "logtype": "2",
     "lstag": "-1",
     "lver": "1.13.26-1",
-    "m": "360ee",
+    "m": [
+      "360ee",
+      ""
+    ],
     "o": [
       "win10",
-      "mac"
+      "mac",
+      "ios16"
     ],
     "os": [
       "Windows",
-      "Mac OS X"
+      "Mac OS X",
+      "IOS"
     ],
     "os_version": [
       "win10",
-      "10.15.7"
+      "10.15.7",
+      "16.0"
     ],
     "p": "1",
     "params-clk": {
@@ -314,10 +346,14 @@
     "pguid": "skip",
     "platformType": [
       "pc",
-      "mac"
+      "mac",
+      "wap"
     ],
     "rd": "mandatory",
-    "s": "1280x720",
+    "s": [
+      "1280x720",
+      "390x844"
+    ],
     "scm": "",
     "scr": "mandatory",
     "sguid": "skip",
@@ -355,11 +391,13 @@
           "customSdkId": "",
           "device_model": [
             "Windows",
-            "Macintosh"
+            "Macintosh",
+            "iPhone"
           ],
           "ism": [
             "pc",
-            "mac"
+            "mac",
+            "iphone"
           ],
           "jsver": "aplus.js",
           "language": [
@@ -368,18 +406,24 @@
           ],
           "lstag": "-1",
           "lver": "1.13.26-1",
-          "m": "360ee",
+          "m": [
+            "360ee",
+            ""
+          ],
           "o": [
             "win10",
-            "mac"
+            "mac",
+            "ios16"
           ],
           "os": [
             "Windows",
-            "Mac OS X"
+            "Mac OS X",
+            "IOS"
           ],
           "os_version": [
             "win10",
-            "10.15.7"
+            "10.15.7",
+            "16.0"
           ],
           "p": "1",
           "params-clk": {
@@ -427,9 +471,13 @@
           "pguid": "skip",
           "platformType": [
             "pc",
-            "mac"
+            "mac",
+            "wap"
           ],
-          "s": "1280x720",
+          "s": [
+            "1280x720",
+            "390x844"
+          ],
           "scm": "",
           "scr": "mandatory",
           "sguid": "skip",

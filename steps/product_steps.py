@@ -106,7 +106,7 @@ def product_page_is_opened(browser_session, bdd_context):
         else:
             # product_url이 없으면 현재 페이지에서 URL 전환 대기 후 수집 (타이밍 이슈 방지)
             try:
-                browser_session.page.wait_for_url(f"*{goodscode_str}*", timeout=15000)
+                browser_session.page.wait_for_url(f"*{goodscode_str}*", timeout=3000)
                 logger.debug("상품 페이지 URL 전환 대기 완료")
             except Exception as e:
                 logger.warning(f"URL 전환 대기 실패: {e}")
@@ -124,16 +124,16 @@ def product_page_is_opened(browser_session, bdd_context):
         tracker = bdd_context.get("tracker") or bdd_context.store.get("tracker")
 
         try:
-            browser_session.page.wait_for_load_state("networkidle", timeout=10000)
+            browser_session.page.wait_for_load_state("networkidle", timeout=3000)
             logger.debug("networkidle 상태 대기 완료 (tracker 없음, PDP PV 대체 대기)")
         except Exception as e:
             logger.warning(f"networkidle 대기 실패, load 상태로 대기: {e}")
             try:
-                browser_session.page.wait_for_load_state("load", timeout=30000)
+                browser_session.page.wait_for_load_state("load", timeout=3000)
                 logger.debug("load 상태 대기 완료")
             except Exception as e2:
                 logger.warning(f"load 상태 대기도 실패: {e2}")
-        time.sleep(2)
+        time.sleep(3)
         logger.info(f"상품 페이지 이동 확인 완료: {goodscode} (PDP PV 로그 수집 대기 완료)")
         
     except Exception as e:
@@ -248,7 +248,6 @@ def user_confirms_and_clicks_product_in_pdp_module(browser_session, module_title
         else:
             is_ad = ad_check
 
-        product_page.click_cart_button(product)
         # 상품 클릭
         try:
                         

@@ -126,58 +126,6 @@ def module_exists_in_search_results(browser_session, module_title, request, bdd_
         if 'module_title' not in bdd_context.store:
             bdd_context.store['module_title'] = module_title
 
-@given(parsers.parse('검색 결과 페이지에 "{module_title}" 모듈이 있다 (type2)'))
-def module_exists_in_search_results_type2(browser_session, module_title, request, bdd_context):
-    """
-    검색 결과 페이지에 특정 모듈이 존재하는지 확인하고 보장 (Given)
-    모듈이 없으면 현재 시나리오만 skip
-    모듈이 있지만 보이지 않으면 실패 플래그만 설정하고 다음으로 진행
-    
-    Args:
-        browser_session: BrowserSession 객체 (page 참조 관리)
-        module_title: 모듈 타이틀
-        request: pytest request 객체 (fixture 접근용)
-        bdd_context: BDD context (step 간 데이터 공유용)
-    """
-    try:
-        search_page = SearchPage(browser_session.page)
-        
-        # 모듈 찾기
-        module = search_page.get_module_by_title(module_title)
-        
-        # 모듈이 존재하는지 확인 (count == 0이면 모듈이 없음)
-        module_count = module.count()
-        if module_count == 0:
-            # 모듈이 없으면 skip 플래그 설정 (시나리오는 계속 진행)
-            skip_reason = f"'{module_title}' 모듈이 검색 결과에 없습니다."
-            logger.warning(skip_reason)
-            if hasattr(bdd_context, '__setitem__'):
-                bdd_context['skip_reason'] = skip_reason
-            elif hasattr(bdd_context, 'store'):
-                bdd_context.store['skip_reason'] = skip_reason
-            # module_title은 저장 (다음 스텝에서 사용 가능하도록)
-            bdd_context.store['module_title'] = module_title
-            return  # 여기서 종료 (다음 스텝으로 진행하되 skip 상태로 기록됨)
-        
-        # 모듈이 있으면 visibility 확인 (실패 시 플래그만 설정)
-        try:
-            expect(module.first).to_be_attached()
-        except AssertionError as e:
-            logger.error(f"모듈 존재 확인 실패: {e}")
-            record_frontend_failure(browser_session, bdd_context, f"모듈 존재 확인 실패: {str(e)}", "검색 결과 페이지에 모듈이 있다 (type2)")
-            # module_title은 저장 (다음 스텝에서 사용 가능하도록)
-            bdd_context.store['module_title'] = module_title
-            return  # 여기서 종료 (다음 스텝으로 진행)
-        
-        # bdd_context에 module_title 저장 (다음 step에서 사용)
-        bdd_context.store['module_title'] = module_title
-        
-        logger.info(f"{module_title} 모듈 존재 확인 완료")
-    except Exception as e:
-        logger.error(f"모듈 확인 중 예외 발생: {e}", exc_info=True)
-        record_frontend_failure(browser_session, bdd_context, str(e), "검색 결과 페이지에 모듈이 있다 (type2)")
-        if 'module_title' not in bdd_context.store:
-            bdd_context.store['module_title'] = module_title
 
 @when(parsers.parse('사용자가"{keyword}""{goodscode}" 최상단 클릭아이템 모듈 패이지로 이동한다'))
 def user_goes_to_top_search_module_page(browser_session, keyword, goodscode, bdd_context):
@@ -217,11 +165,17 @@ def user_confirms_and_clicks_product_in_module(browser_session, module_title, bd
         # 모듈로 이동
         module = search_page.get_module_by_title(module_title)
         search_page.scroll_module_into_view(module)
+        time.sleep(2)
         ad_check = search_page.check_ad_item_in_srp_lp_module(module_title)
         
-        # 모듈 내 상품 찾기
+        # 모듈 내 상품 찾기 (feature의 type1/type2 예시 모두 커버: 모듈별 선택자 분기)
         parent = search_page.get_module_parent(module, 3)
-        product = search_page.get_product_in_module(parent)
+        if module_title == "4.5 이상":
+            product = search_page.get_product_in_module_type3(parent)
+        elif module_title in ("백화점 브랜드", "브랜드 인기상품", "MD's Pick", "백화점픽", "최하단캐러셀", "연관키워드"):
+            product = search_page.get_product_in_module_type2(parent)
+        else:
+            product = search_page.get_product_in_module(parent)
         search_page.scroll_product_into_view(product)
         
         # 상품 노출 확인 (실패 시 예외 발생)
@@ -270,9 +224,11 @@ def user_confirms_and_clicks_product_in_module(browser_session, module_title, bd
         except Exception as e:
             logger.error(f"상품 클릭 실패: {e}", exc_info=True)
             record_frontend_failure(browser_session, bdd_context, f"상품 클릭 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다")
-            # goodscode는 저장 (일부 정보라도 보존)
+            # goodscode, is_ad 등 이미 읽은 값은 저장 (검증 스텝에서 <is_ad> 치환에 사용)
             if 'goodscode' in locals():
                 bdd_context.store['goodscode'] = goodscode
+            if 'is_ad' in locals():
+                bdd_context.store['is_ad'] = is_ad
             if 'module_title' not in bdd_context.store:
                 bdd_context.store['module_title'] = module_title
             
@@ -300,6 +256,7 @@ def user_confirms_and_clicks_product_in_module_type2(browser_session, module_tit
         # 모듈로 이동
         module = search_page.get_module_by_title(module_title)
         search_page.scroll_module_into_view(module)
+        time.sleep(2)
         ad_check = search_page.check_ad_item_in_srp_lp_module(module_title)
         
         # 모듈 내 상품 찾기
@@ -349,9 +306,11 @@ def user_confirms_and_clicks_product_in_module_type2(browser_session, module_tit
         except Exception as e:
             logger.error(f"상품 클릭 실패: {e}", exc_info=True)
             record_frontend_failure(browser_session, bdd_context, f"상품 클릭 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다 (type2)")
-            # goodscode는 저장 (일부 정보라도 보존)
+            # goodscode, is_ad 등 이미 읽은 값은 저장 (검증 스텝에서 <is_ad> 치환에 사용)
             if 'goodscode' in locals():
                 bdd_context.store['goodscode'] = goodscode
+            if 'is_ad' in locals():
+                bdd_context.store['is_ad'] = is_ad
             if 'module_title' not in bdd_context.store:
                 bdd_context.store['module_title'] = module_title
             

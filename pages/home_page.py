@@ -59,7 +59,8 @@ class HomePage(BasePage):
         """
         runtext = f"Home > {keyword} 검색"
         logger.info("%s 시작", runtext)
-        self.page.get_by_role("button", name="검색").click()
+        # exact=True: '검색어 초기화' 버튼 등 다른 '검색' 관련 버튼과 구분해 검색 오픈 버튼만 클릭 (strict mode 방지)
+        self.page.get_by_role("button", name="검색", exact=True).click()
         self.page.fill("input[name='keyword']", keyword)
         self.page.locator("fieldset").get_by_role("button", name="검색", exact=True).click()
         logger.info("%s 종료", runtext)
