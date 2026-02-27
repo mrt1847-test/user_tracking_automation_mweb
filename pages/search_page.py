@@ -273,10 +273,11 @@ class SearchPage(BasePage):
         self.page.wait_for_load_state("domcontentloaded")
 
     def verify_keyword_element_exists(self, keyword: str) -> None:
-        """data-montelena-keyword=keyword 인 요소가 있는지 검증"""
-        logger.debug(f"data-montelena-keyword={keyword} 요소 검증")
-        locator = self.page.locator(f'[data-montelena-keyword="{keyword}"]').first
+        """span.box__text-field 내 검색어 열기 버튼이 보이고, 그 텍스트에 keyword가 포함되는지 검증"""
+        logger.debug(f"검색어 입력 영역에 '{keyword}' 포함 여부 검증")
+        locator = self.page.locator('.box__text-field button.form__input').first
         expect(locator).to_be_visible()
+        expect(locator).to_contain_text(keyword)
     
     def click_first_product(self, timeout: int = 10000) -> Optional[Page]:
         """
@@ -494,7 +495,7 @@ class SearchPage(BasePage):
         """
         logger.debug("상품 클릭 및 같은 페이지 내 이동 대기 (모바일: tap 사용)")
 
-        with self.page.expect_navigation(timeout=15000):
+        with self.page.expect_navigation(timeout=15000, wait_until="domcontentloaded"):
             product_locator.tap(timeout=5000)
         logger.debug("상품 탭 후 페이지 이동 완료")
 

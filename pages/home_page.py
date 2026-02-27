@@ -52,7 +52,7 @@ class HomePage(BasePage):
     def search_product(self, keyword: str) -> None:
         """
         홈화면에서 특정 keyword로 검색
-        검색 버튼 클릭 → 검색어 입력 → 검색 실행
+        검색 버튼 클릭 → 검색어 입력창 노출 대기 → 검색어 입력 → 검색 실행
         
         Args:
             keyword: 검색어
@@ -61,7 +61,10 @@ class HomePage(BasePage):
         logger.info("%s 시작", runtext)
         # exact=True: '검색어 초기화' 버튼 등 다른 '검색' 관련 버튼과 구분해 검색 오픈 버튼만 클릭 (strict mode 방지)
         self.page.get_by_role("button", name="검색", exact=True).click()
-        self.page.fill("input[name='keyword']", keyword)
+        # 검색어 입력 영역(span.box__text-field 내 input[name='keyword'])이 뜰 때까지 대기
+        search_input = self.page.locator("span.box__text-field input[name='keyword']")
+        search_input.wait_for(state="visible", timeout=10000)
+        search_input.fill(keyword)
         self.page.locator("fieldset").get_by_role("button", name="검색", exact=True).click()
         logger.info("%s 종료", runtext)
     

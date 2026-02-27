@@ -102,7 +102,7 @@ def load_module_config(
     feature_path: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    모듈별 설정을 JSON 파일에서 로드
+    모듈별 설정을 JSON 파일에서 로드 (검증 기준은 이 파일만 사용. config/_common_fields_by_event.json 미사용)
     
     Args:
         area: 영역명 (SRP, PDP, HOME, CART 등). None이면 feature_path에서 추론
@@ -596,7 +596,7 @@ def validate_event_type_logs(
     if len(logs) == 0:
         return True, [], {}
     
-    # module_config.json에서 expected 값 생성
+    # 검증 기준은 오로지 각 모듈별 JSON(config/{area}/{module}.json)만 사용. _common_fields_by_event.json 은 사용하지 않음.
     expected = build_expected_from_module_config(
         module_config_data,
         event_type,

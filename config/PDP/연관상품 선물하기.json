@@ -1,18 +1,46 @@
 {
   "pdp_gift_click": {
     "payload": {
-      "gmkey": "CLK",
-      "ts": "mandatory",
-      "rd": "mandatory",
-      "gokey": "mandatory",
-      "cna": "mandatory",
-      "spm-cnt": "gmktm.pdp.0.0",
-      "logtype": "2",
-      "scr": "mandatory",
-      "_p_url": "mandatory",
       "decoded_gokey": {
-        "decoded_gokey": "mandatory",
         "params": {
+          "device_model": [
+            "Windows",
+            "Macintosh",
+            "iPhone"
+          ],
+          "ism": [
+            "pc",
+            "mac",
+            "iphone"
+          ],
+          "m": [
+            "360ee",
+            ""
+          ],
+          "o": [
+            "win10",
+            "mac",
+            "ios16"
+          ],
+          "os": [
+            "Windows",
+            "Mac OS X",
+            "IOS"
+          ],
+          "os_version": [
+            "win10",
+            "10.15.7",
+            "16.0"
+          ],
+          "platformType": [
+            "pc",
+            "mac",
+            "wap"
+          ],
+          "s": [
+            "1280x720",
+            "390x844"
+          ],
           "spm-url": "",
           "spm-pre": "",
           "spm-cnt": "gmktm.pdp.0.0",
@@ -39,7 +67,7 @@
               "_p_catalog": "skip",
               "_p_group": "skip",
               "quantity": "1",
-              "itm_price": "<할인가>",
+              "itm_price": "61780",
               "_p_parent_sku_id": "",
               "_p_parent_sku_info": ""
             }
@@ -50,49 +78,33 @@
           "jsver": "aplus.js",
           "lver": "1.13.26-1",
           "customSdkId": "",
-          "platformType": [
-            "pc",
-            "mac"
-          ],
-          "device_model": [
-            "Windows",
-            "Macintosh"
-          ],
-          "os": [
-            "Windows",
-            "Mac OS X"
-          ],
-          "os_version": [
-            "win10",
-            "10.15.7"
-          ],
           "language": [
             "ko-KR",
             "en-US"
-          ],
-          "o": [
-            "win10",
-            "mac"
           ],
           "w": [
             "webkit",
             "chrome"
           ],
-          "s": "1280x720",
           "scr": "mandatory",
-          "m": "360ee",
-          "ism": [
-            "pc",
-            "mac"
-          ],
           "p": "1",
           "b": "mandatory",
           "tag": "1",
           "stag": "-1",
           "lstag": "-1",
           "_g_encode": "utf-8"
-        }
-      }
+        },
+        "decoded_gokey": "mandatory"
+      },
+      "gmkey": "CLK",
+      "ts": "mandatory",
+      "rd": "mandatory",
+      "gokey": "mandatory",
+      "cna": "mandatory",
+      "spm-cnt": "gmktm.pdp.0.0",
+      "logtype": "2",
+      "scr": "mandatory",
+      "_p_url": "mandatory"
     }
   }
 }

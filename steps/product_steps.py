@@ -490,6 +490,7 @@ def user_confirms_and_clicks_product_in_BuyBox_module(browser_session, module_ti
 
         # 모듈로 이동
         module = product_page.get_module_by_title(module_title)
+        ad_check = product_page.check_ad_item_in_module(module_title)
         product_page.scroll_module_into_view(module)
         time.sleep(2)     
   
@@ -515,6 +516,12 @@ def user_confirms_and_clicks_product_in_BuyBox_module(browser_session, module_ti
         # 상품 코드 가져오기
         goodscode = product_page.get_product_code(product)
 
+                # 모듈별 광고상품 여부 저장장
+        if ad_check == "F":
+            is_ad = product_page.check_ad_tag_in_product(product)
+        else:
+            is_ad = ad_check
+
         # 상품 클릭
         try:
                         
@@ -532,6 +539,7 @@ def user_confirms_and_clicks_product_in_BuyBox_module(browser_session, module_ti
             bdd_context.store['product_url'] = browser_session.page.url         
             bdd_context.store['module_title'] = module_title
             bdd_context.store['goodscode'] = goodscode
+            bdd_context.store['is_ad'] = is_ad
 
             logger.info(f"{module_title} 모듈 내 상품 확인 및 클릭 완료: {goodscode}")
         except Exception as e:

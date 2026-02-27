@@ -159,17 +159,12 @@ def merge_common_fields_with_module_config(module_config: Dict[str, Any],
             data_to_flatten = module_event_config.get('payload', module_event_config)
             module_flat = flatten_json(data_to_flatten, exclude_keys=['timestamp', 'method', 'url'])
     
-    # 병합: 모듈 필드가 있으면 모듈 필드 우선, 없으면 공통 필드 사용
-    merged_flat = []
-    module_paths = {item['path'] for item in module_flat}
-    
-    # 공통 필드 추가 (모듈 필드에 없는 것만)
-    for item in common_flat:
-        if item['path'] not in module_paths:
+    # 병합: 공통 필드 정의가 있으면 공통 값 우선, 나머지는 모듈 필드 (공통에 없는 path만 모듈에서 추가)
+    common_paths = {item['path'] for item in common_flat}
+    merged_flat = list(common_flat)
+    for item in module_flat:
+        if item['path'] not in common_paths:
             merged_flat.append(item)
-    
-    # 모듈 필드 추가 (모든 모듈 필드는 우선)
-    merged_flat.extend(module_flat)
     
     # 평면화된 데이터를 중첩 구조로 재구성
     merged_config = unflatten_json(merged_flat)

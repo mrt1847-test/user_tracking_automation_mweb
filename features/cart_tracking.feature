@@ -14,10 +14,10 @@ Feature: G마켓 CART 트래킹 로그 정합성 검증
     When 모듈 내 장바구니 버튼 클릭
     Then 장바구니 담기 완료되었다
     Then 모든 트래킹 로그를 JSON 파일로 저장함
-    Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1166933)
-    And Product Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1166934)
-    And Product Click 로그가 정합성 검증을 통과해야 함 (TC: C1166936)
-    And Product ATC Click 로그가 정합성 검증을 통과해야 함 (TC: C1166937)
+    Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1228994)
+    And Product Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1228995)
+    And Product Click 로그가 정합성 검증을 통과해야 함 (TC: C1228998)
+    And Product ATC Click 로그가 정합성 검증을 통과해야 함 (TC: C1228997)
 
   Scenario: CART 페이지에서 장바구니 BT 모듈듈 상품 클릭 시 트래킹 로그 검증
     Given G마켓 홈 페이지에 접속했음
@@ -31,8 +31,8 @@ Feature: G마켓 CART 트래킹 로그 정합성 검증
     When 모듈 내 장바구니 버튼 클릭
     Then 장바구니 담기 완료되었다
     Then 모든 트래킹 로그를 JSON 파일로 저장함
-    Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1166933)
-    And Product Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1166934)
-    And Product Click 로그가 정합성 검증을 통과해야 함 (TC: C1166936)
-    And Product ATC Click 로그가 정합성 검증을 통과해야 함 (TC: C1166937)
+    Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1229000)
+    And Product Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1229001)
+    And Product Click 로그가 정합성 검증을 통과해야 함 (TC: C1229004)
+    And Product ATC Click 로그가 정합성 검증을 통과해야 함 (TC: C1229003)
 

@@ -326,7 +326,8 @@ class ProductPage(BasePage):
             "연관상품": "N",
             "연관상품 상세보기": "N",
             "연관상품 더보기": "N",
-            "BuyBox": "N"
+            "BuyBox": "N",
+            "낮은가격순": "N"
         }
         
         if modulel_title not in MODULE_AD_CHECK:

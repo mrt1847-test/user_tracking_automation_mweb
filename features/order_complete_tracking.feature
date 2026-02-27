@@ -10,10 +10,10 @@ Feature: G마켓 주문완료 트래킹 로그 정합성 검증
     When 사용자가 "주문완료 BT" 모듈 내 상품을 확인하고 상품을 클릭한다
     Then 상품 페이지로 이동되었다
     Then 모든 트래킹 로그를 JSON 파일로 저장함
-    Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1166940)
-    And Product Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1166941)
-    And Product Click 로그가 정합성 검증을 통과해야 함 (TC: C1166943)
-    And Product ATC Click 로그가 정합성 검증을 통과해야 함 (TC: C1166944)
+    Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1229007)
+    And Product Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1229008)
+    And Product Click 로그가 정합성 검증을 통과해야 함 (TC: C1229011)
+    And Product ATC Click 로그가 정합성 검증을 통과해야 함 (TC: C1229010)
 
   # Scenario: 주문완료 페이지에서 주문완료 BT 모듈에서서 옵션선택 클릭 시 트래킹 로그 검증
   #   Given G마켓 홈 페이지에 접속했음

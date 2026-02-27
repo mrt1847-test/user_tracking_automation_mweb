@@ -1,7 +1,6 @@
 {
   "module_exposure": {
     "payload": {
-      "_gr_uid_": "11758850530814005372000000",
       "_p_url": "mandatory",
       "cna": "mandatory",
       "decoded_gokey": {
@@ -40,7 +39,10 @@
           ],
           "lstag": "-1",
           "lver": "1.13.26-1",
-          "m": "360ee",
+          "m": [
+            "360ee",
+            ""
+          ],
           "o": [
             "win10",
             "mac",
@@ -73,14 +75,16 @@
             "mac",
             "wap"
           ],
-          "s": "1280x720",
+          "s": [
+            "1280x720",
+            "390x844"
+          ],
           "scm": "",
           "scr": "mandatory",
           "sguid": "skip",
           "st_page_id": "mandatory",
           "stag": "-1",
           "tag": "1",
-          "uidaplus": "11758850530814005372000000",
           "w": [
             "webkit",
             "chrome"
@@ -100,14 +104,12 @@
       "rd": "mandatory",
       "scr": "mandatory",
       "ts": "mandatory",
-      "uidaplus": "11758850530814005372000000",
       "spm-cnt": "gmktm.pdp.0.0"
     }
   },
   "product_click": {
     "_f_t": "false",
     "_g_encode": "utf-8",
-    "_gr_uid_": "11758850530814005372000000",
     "_is_auto_clk": "1",
     "_p_url": "mandatory",
     "b": "mandatory",
@@ -223,7 +225,6 @@
     "stag": "-1",
     "tag": "1",
     "ts": "mandatory",
-    "uidaplus": "11758850530814005372000000",
     "w": [
       "webkit",
       "chrome"
@@ -238,7 +239,6 @@
   },
   "product_minidetail": {
     "payload": {
-      "_gr_uid_": "11758850530814005372000000",
       "_p_url": "mandatory",
       "cna": "mandatory",
       "decoded_gokey": {
@@ -277,7 +277,10 @@
           ],
           "lstag": "-1",
           "lver": "1.13.26-1",
-          "m": "360ee",
+          "m": [
+            "360ee",
+            ""
+          ],
           "o": [
             "win10",
             "mac",
@@ -302,14 +305,16 @@
             "wap"
           ],
           "promotion_price": "mandatory",
-          "s": "1280x720",
+          "s": [
+            "1280x720",
+            "390x844"
+          ],
           "scr": "mandatory",
           "sguid": "skip",
           "spm": "mandatory",
           "st_page_id": "mandatory",
           "stag": "-1",
           "tag": "1",
-          "uidaplus": "11758850530814005372000000",
           "w": [
             "webkit",
             "chrome"
@@ -328,7 +333,6 @@
       "rd": "mandatory",
       "scr": "mandatory",
       "ts": "mandatory",
-      "uidaplus": "11758850530814005372000000",
       "spm-cnt": "gmktm.pdp.0.0"
     }
   }

@@ -196,6 +196,7 @@ def click_recently_viewed_product(browser_session, bdd_context):
             raise AssertionError("최근본 상품 코드를 가져올 수 없습니다.")
         bdd_context.store["module_title"] = "최근본 상품"
         bdd_context.store["goodscode"] = goodscode
+        bdd_context.store['is_ad'] = 'N'
         product_locator = home_page.get_product_by_code(goodscode)
         home_page.scroll_product_into_view(product_locator)
         product_locator.tap(timeout=5000)
