@@ -143,7 +143,6 @@
               "_p_sku": "0",
               "ab_buckets": "skip",
               "gmkt_page_id": "",
-              "is_airticket": "N",
               "module_index": "mandatory",
               "section_index": "",
               "utLogMap": {
@@ -308,7 +307,6 @@
         "_p_sku": "0",
         "ab_buckets": "skip",
         "gmkt_page_id": "",
-        "is_airticket": "N",
         "module_index": "mandatory",
         "section_index": "",
         "utLogMap": {

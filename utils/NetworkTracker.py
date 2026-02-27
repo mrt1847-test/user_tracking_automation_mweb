@@ -1443,6 +1443,9 @@ class NetworkTracker:
             
             # 값 검증
             field_passed = False
+            # skip 값 처리: "__SKIP__"인 경우 필드 존재 여부와 값을 완전히 무시
+            if isinstance(expected_value, str) and expected_value == "__SKIP__":
+                continue
             # 빈 문자열("") 기대값 처리: actual_value가 None이어도 통과 (필드가 없어도 빈 값으로 간주)
             if isinstance(expected_value, str) and expected_value == "":
                 # 기대값이 빈 문자열이면, actual_value가 None이거나 빈 문자열이면 통과
@@ -1456,10 +1459,6 @@ class NetworkTracker:
                     )
             elif actual_value is None:
                 errors.append(f"키 '{key}'에 해당하는 값이 없습니다.")
-            elif isinstance(expected_value, str) and expected_value == "__SKIP__":
-                # skip 필드: 어떤 값이든 통과 (검증 스킵)
-                passed_fields[key] = expected_value  # skip 필드도 통과한 것으로 간주 (기대값 저장)
-                continue  # 검증 스킵, 다음 필드로
             elif isinstance(expected_value, str) and expected_value == "__MANDATORY__":
                 # mandatory 필드: 빈 값만 아니면 통과
                 # 빈 값 체크: None, 빈 문자열, 공백만 있는 문자열
