@@ -1218,7 +1218,70 @@ class NetworkTracker:
             f"SPM '{spm}'로 필터링된 Product Exposure 로그: {len(filtered_logs)}/{len(logs)}개 (매칭된 항목: {matched_items}/{total_items}개)"
         )
         return filtered_logs
-    
+
+    def get_product_exposure_logs_by_spm(self, spm: str) -> List[Dict[str, Any]]:
+        """
+        SPM만 기준으로 Product Exposure 로그 반환 (상품번호 필터 없음).
+        expdata.parsed에서 target SPM과 매칭되는 exargs만 남긴 로그 리스트를 반환.
+
+        Args:
+            spm: SPM 값 (예: "gmktm.pdp.pdpjfy")
+
+        Returns:
+            해당 SPM에 해당하는 Product Exposure 로그 리스트
+        """
+        logs = self.get_logs('Product Exposure')
+        filtered_logs = []
+        total_items = 0
+        matched_items = 0
+
+        for log in logs:
+            filtered_log = copy.deepcopy(log)
+            payload = filtered_log.get('payload', {})
+            decoded_gokey = payload.get('decoded_gokey', {}) or {}
+            params = decoded_gokey.get('params', {}) if isinstance(decoded_gokey, dict) else {}
+            expdata = params.get('expdata', {}) if isinstance(params, dict) else {}
+            if (not expdata or not expdata.get('parsed')) and isinstance(payload, dict) and payload.get('expdata'):
+                raw_exp = payload['expdata']
+                if isinstance(raw_exp, str):
+                    parsed_fallback = self._decode_expdata(raw_exp) or []
+                elif isinstance(raw_exp, list):
+                    parsed_fallback = raw_exp
+                else:
+                    parsed_fallback = []
+                if not isinstance(decoded_gokey, dict):
+                    payload['decoded_gokey'] = {}
+                    decoded_gokey = payload['decoded_gokey']
+                decoded_gokey.setdefault('params', {})['expdata'] = {
+                    'raw': raw_exp if isinstance(raw_exp, str) else json.dumps(raw_exp),
+                    'parsed': parsed_fallback,
+                }
+                expdata = decoded_gokey['params']['expdata']
+
+            filtered_items = []
+            if isinstance(expdata, dict) and 'parsed' in expdata:
+                parsed_list = expdata.get('parsed', [])
+                if isinstance(parsed_list, list):
+                    for item in parsed_list:
+                        total_items += 1
+                        item_spm = self._extract_spm_from_product_exposure_item(item)
+                        if not item_spm or not self._check_spm_match(item_spm, spm):
+                            continue
+                        filtered_items.append(item)
+                        matched_items += 1
+                        logger.debug(f"Product Exposure SPM 매칭: spm={item_spm}, target_spm={spm}")
+
+            if filtered_items:
+                expdata['parsed'] = filtered_items
+                filtered_logs.append(filtered_log)
+            else:
+                logger.debug(f"Product Exposure 로그 제외: target_spm={spm}와 매칭되는 exargs 없음")
+
+        logger.info(
+            f"SPM '{spm}'만으로 필터링된 Product Exposure 로그: {len(filtered_logs)}/{len(logs)}개 (매칭된 항목: {matched_items}/{total_items}개)"
+        )
+        return filtered_logs
+
     def get_product_click_logs_by_goodscode(self, goodscode: str) -> List[Dict[str, Any]]:
         """
         goodscode 기준으로 Product Click 로그만 반환
@@ -1443,8 +1506,9 @@ class NetworkTracker:
             
             # 값 검증
             field_passed = False
-            # skip 값 처리: "__SKIP__"인 경우 필드 존재 여부와 값을 완전히 무시
+            # skip 값 처리: "__SKIP__"인 경우 필드 존재 여부와 값을 완전히 무시 (테스트레일 기록용으로 passed_fields에 skip 표시)
             if isinstance(expected_value, str) and expected_value == "__SKIP__":
+                passed_fields[key] = "(skip)"
                 continue
             # 빈 문자열("") 기대값 처리: actual_value가 None이어도 통과 (필드가 없어도 빈 값으로 간주)
             if isinstance(expected_value, str) and expected_value == "":

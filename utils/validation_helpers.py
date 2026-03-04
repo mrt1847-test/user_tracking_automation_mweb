@@ -5,7 +5,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Union
 from utils.NetworkTracker import NetworkTracker
 
 # 이벤트 타입과 메서드 이름 매핑
@@ -99,7 +99,8 @@ def detect_area_from_feature_path(feature_path: Optional[str] = None) -> str:
 def load_module_config(
     area: Optional[str] = None,
     module_title: Optional[str] = None,
-    feature_path: Optional[str] = None
+    feature_path: Optional[str] = None,
+    nth: Optional[Union[int, str]] = None
 ) -> Dict[str, Any]:
     """
     모듈별 설정을 JSON 파일에서 로드 (검증 기준은 이 파일만 사용. config/_common_fields_by_event.json 미사용)
@@ -108,6 +109,7 @@ def load_module_config(
         area: 영역명 (SRP, PDP, HOME, CART 등). None이면 feature_path에서 추론
         module_title: 모듈 타이틀. None이면 전체 영역의 모든 모듈 로드
         feature_path: Feature 파일 경로 (영역 추론용)
+        nth: n번째 상품 (있으면 모듈명(nth).json 우선, 없으면 모듈명.json 폴백)
     
     Returns:
         모듈별 설정 딕셔너리 (module_title이 None이면 {module_title: config} 형태)
@@ -120,6 +122,12 @@ def load_module_config(
     
     # module_title이 지정된 경우 해당 파일만 로드
     if module_title:
+        # nth가 있으면 모듈명(nth).json 우선 시도, 없으면 모듈명.json
+        if nth is not None and str(nth).strip() != '':
+            config_file_path_nth = config_base_path / f"{module_title}({nth}).json"
+            if config_file_path_nth.exists():
+                with open(config_file_path_nth, 'r', encoding='utf-8') as f:
+                    return json.load(f)
         config_file_path = config_base_path / f"{module_title}.json"
         if config_file_path.exists():
             with open(config_file_path, 'r', encoding='utf-8') as f:

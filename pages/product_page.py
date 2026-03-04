@@ -169,21 +169,24 @@ class ProductPage(BasePage):
             return self.page.get_by_text("상담 신청하기").nth(1)
         elif module_title == "가입신청":
             return self.page.get_by_text("가입 신청하기").nth(1)        
+        elif module_title == "pdpjfy":
+            return self.page.get_by_text("이런 상품은 어때요?").nth(0)
         else:
             return self.page.get_by_text(module_title).nth(0)
 
-    def get_product_in_module(self, parent_locator: Locator) -> Locator:
+    def get_product_in_module(self, parent_locator: Locator, nth: int = 1) -> Locator:
         """
         모듈 내 상품 요소 찾기
         
         Args:
             parent_locator: 모듈 부모 Locator 객체
+            nth: li 인덱스 (0부터 시작). 생략 시 0 사용.
             
         Returns:
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        return parent_locator.locator("li").nth(0).locator("a")
+        return parent_locator.locator("li").nth(nth -1).locator("a")
 
     def get_product_in_related_module(self, parent_locator: Locator) -> Locator:
         """
@@ -327,7 +330,8 @@ class ProductPage(BasePage):
             "연관상품 상세보기": "N",
             "연관상품 더보기": "N",
             "BuyBox": "N",
-            "낮은가격순": "N"
+            "낮은가격순": "N",
+            "pdpjfy": "F"
         }
         
         if modulel_title not in MODULE_AD_CHECK:
@@ -347,9 +351,11 @@ class ProductPage(BasePage):
         """
         logger.debug(f"상품 내 광고 태그 노출 확인: {product_locator}")
         
+        product_locator = product_locator.locator("xpath=..")
+        
         try:
             # 상품 요소의 조상 요소에서 div.box__ads-layer 찾기
-            ads_layer = product_locator.locator("div.box__ads-tag")
+            ads_layer = product_locator.get_by_text("AD", exact=True)
             
             if ads_layer.count() > 0:
                 logger.debug("광고 태그 발견: Y")

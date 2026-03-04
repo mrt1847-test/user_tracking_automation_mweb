@@ -557,3 +557,112 @@ def user_confirms_and_clicks_product_in_BuyBox_module(browser_session, module_ti
         record_frontend_failure(browser_session, bdd_context, str(e), "사용자가 모듈 내 상품을 확인하고 클릭한다")
         if 'module_title' not in bdd_context.store:
             bdd_context.store['module_title'] = module_title
+
+
+
+@when(parsers.parse('사용자가 PDP에서 "{module_title}" 모듈 내 {n}번째 상품을 확인하고 클릭한다'))
+def user_confirms_and_clicks_product_in_pdp_module(browser_session, module_title, n, bdd_context):
+    """
+    모듈 내 상품 노출 확인하고 클릭 (Atomic POM 조합)
+    
+    Args:
+        browser_session: BrowserSession 객체 (page 참조 관리)
+        module_title: 모듈 타이틀
+        n: 번째 상품 (Examples 컬럼 n, 저장/검증 시 nth로 사용)
+        bdd_context: BDD context (step 간 데이터 공유용)
+    """
+    try:
+        nth_idx = int(n) if n is not None and str(n).strip() else 0
+        product_page = ProductPage(browser_session.page)
+
+        # 모듈로 이동
+        module = product_page.get_module_by_title(module_title)
+        product_page.scroll_module_into_view(module)
+        time.sleep(2)
+        ad_check = product_page.check_ad_item_in_module(module_title)
+        
+
+        # 모듈 내 상품 찾기
+        if module_title == "이 판매자의 인기상품이에요":
+            product = product_page.get_product_in_module(module)
+        elif module_title == "연관상품":
+            parent = product_page.get_module_parent(module, 3)
+        else:
+            parent = product_page.get_module_parent(module, 2)
+
+        #상품으로 이동
+        if module_title == "연관상품 상세보기":
+            product = product_page.get_product_in_related_module(parent)
+        elif module_title == "BuyBox":
+            product = product_page.get_product_in_cheaper_module(module)
+        elif module_title == "이 판매자의 인기상품이에요":
+             pass # product는 위에서 module로 이미 설정됨
+        else:
+            product = product_page.get_product_in_module(parent, nth_idx)
+        product_page.scroll_product_into_view(product)
+        time.sleep(2)
+
+        # 상품 노출 확인 (실패 시 예외 발생)
+        try:
+            expect(product.first).to_be_visible()
+        except AssertionError as e:
+            # 실패 정보 저장하되 예외는 다시 발생시키지 않음
+            logger.error(f"상품 노출 확인 실패: {e}")
+            record_frontend_failure(browser_session, bdd_context, f"상품 노출 확인 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다")
+            if 'module_title' not in bdd_context.store:
+                bdd_context.store['module_title'] = module_title
+            return  # 여기서 종료 (다음 스텝으로 진행)
+    
+        # 상품 코드 가져오기
+        goodscode = product_page.get_product_code_in_json(product)
+
+        # 모듈별 광고상품 여부 저장장
+        if ad_check == "F":
+            is_ad = product_page.check_ad_tag_in_product(product)
+        else:
+            is_ad = ad_check
+
+        # 상품 클릭
+        try:
+                        
+            if "연관상품" in module_title:
+                product_page.click_product(product)
+            elif "이마트몰" in module_title or module_title == "이 브랜드의 인기상품" or module_title == "점포 행사 상품이에요":
+                product_page.click_cart_button(product)
+                time.sleep(2)
+                product_page.click_product(product)
+            else:
+                with browser_session.page.expect_navigation(wait_until="networkidle"):
+                    product_page.click_product(product)
+                
+            time.sleep(2)
+            product_page.close_popup()
+            logger.info("팝업 닫기")
+            
+            # bdd context에 저장 (module_title, goodscode, product_url, nth)
+            bdd_context.store['product_url'] = browser_session.page.url         
+            bdd_context.store['module_title'] = module_title
+            bdd_context.store['is_ad'] = is_ad
+            bdd_context.store['goodscode'] = goodscode
+            bdd_context.store['nth'] = n
+
+            logger.info(f"{module_title} 모듈 내 상품 확인 및 클릭 완료: {goodscode}")
+        except Exception as e:
+            logger.error(f"상품 클릭 실패: {e}", exc_info=True)
+            record_frontend_failure(browser_session, bdd_context, f"상품 클릭 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다")
+            # goodscode는 저장 (일부 정보라도 보존)
+            if 'goodscode' in locals():
+                bdd_context.store['goodscode'] = goodscode
+            if 'module_title' not in bdd_context.store:
+                bdd_context.store['module_title'] = module_title
+            bdd_context.store['nth'] = n
+            if 'is_ad' in locals():
+                bdd_context.store['is_ad'] = is_ad
+                
+    except Exception as e:
+        # 예상치 못한 예외 처리
+        logger.error(f"프론트 동작 중 예외 발생: {e}", exc_info=True)
+        record_frontend_failure(browser_session, bdd_context, str(e), "사용자가 모듈 내 상품을 확인하고 클릭한다")
+        if 'module_title' not in bdd_context.store:
+            bdd_context.store['module_title'] = module_title
+        bdd_context.store['nth'] = n

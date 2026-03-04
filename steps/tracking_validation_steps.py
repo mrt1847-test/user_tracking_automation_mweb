@@ -46,8 +46,9 @@ def _check_and_validate_event_logs(
         logger.warning(f"[TestRail TC: {tc_id}] Skip: {skip_reason}")
         return True
     
-    # module_config 확인
-    module_config = load_module_config(area=area, module_title=module_title)
+    # module_config 확인 (nth 있으면 모듈명(nth).json 우선)
+    nth = bdd_context.get('nth') or (getattr(bdd_context, 'store', None) and bdd_context.store.get('nth'))
+    module_config = load_module_config(area=area, module_title=module_title, nth=nth)
     module_config_data = module_config if isinstance(module_config, dict) else {}
     
     if event_config_key not in module_config_data:
@@ -171,8 +172,9 @@ def then_pv_logs_should_pass_validation(bdd_context):
     try:
         tracker, goodscode, module_title, frontend_data, area = _get_common_context(bdd_context)
         
-        # module_config.json에서 PV가 정의되어 있는지 확인
-        module_config = load_module_config(area=area, module_title=module_title)
+        # module_config.json에서 PV가 정의되어 있는지 확인 (nth 있으면 모듈명(nth).json 우선)
+        nth = bdd_context.get('nth') or (getattr(bdd_context, 'store', None) and bdd_context.store.get('nth'))
+        module_config = load_module_config(area=area, module_title=module_title, nth=nth)
         module_config_data = module_config if isinstance(module_config, dict) else {}
         event_config_key = 'pv'
         
@@ -595,7 +597,8 @@ def then_save_all_tracking_logs_to_json(bdd_context):
     if not module_title:
         raise ValueError("bdd_context에 'module_title'가 없습니다.")
     
-    _save_tracking_logs(bdd_context, tracker, goodscode, module_title)
+    nth = bdd_context.get('nth') or (getattr(bdd_context, 'store', None) and bdd_context.store.get('nth'))
+    _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=nth)
 
 
 @then("모든 로그 검증이 완료되었음")
@@ -609,14 +612,14 @@ def then_all_validations_completed(bdd_context):
     logger.info("모든 로그 검증이 성공적으로 완료되었습니다.")
 
 
-def _save_tracking_logs(bdd_context, tracker, goodscode, module_title):
-    """트래킹 로그를 JSON 파일로 저장 (tracking_all만 저장)"""
+def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None):
+    """트래킹 로그를 JSON 파일로 저장 (tracking_all만 저장). nth가 있으면 tracking_all_모듈명(nth).json"""
     try:
         # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         area = bdd_context.get('area')
         if not area:
             raise ValueError("bdd_context에 'area'가 없습니다. Feature 파일 경로에서 영역을 추론하지 못했습니다.")
-        module_config = load_module_config(area=area, module_title=module_title)
+        module_config = load_module_config(area=area, module_title=module_title, nth=nth)
         
         # 모듈별 설정에서 SPM 가져오기 (이벤트 타입별 섹션에서, 재귀적으로 탐색)
         module_spm = None
@@ -625,7 +628,9 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title):
             module_exposure = module_config.get('module_exposure', {})
             if module_exposure:
                 module_spm = _find_spm_recursive(module_exposure)
-        
+
+        module_safe = module_title_to_filename(module_title)
+
         # 각 이벤트 타입별 로그 저장 (주석 처리: tracking_all만 저장하도록 함)
         # event_configs = [
         #     ('pv', 'get_pv_logs', None),
@@ -705,11 +710,30 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title):
         all_logs.extend(tracker.get_pdp_rental_click_logs_by_goodscode(goodscode))
         
         if len(all_logs) > 0:
-            module_safe = module_title_to_filename(module_title)
-            all_filepath = Path(f'json/tracking_all_{module_safe}.json')
+            if nth is not None and str(nth).strip() != '':
+                all_filepath = Path(f'json/tracking_all_{module_safe}({nth}).json')
+            else:
+                all_filepath = Path(f'json/tracking_all_{module_safe}.json')
             all_filepath.parent.mkdir(parents=True, exist_ok=True)
             with open(all_filepath, 'w', encoding='utf-8') as f:
                 json.dump(all_logs, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"전체 트래킹 로그 저장 완료: {all_filepath.resolve()} (로그 개수: {len(all_logs)})")
+
+        # Product Exposure 이벤트만 SPM 기준으로 별도 파일 저장 (상품번호 필터 없음)
+        if module_spm:
+            product_exposure_logs = tracker.get_product_exposure_logs_by_spm(module_spm)
+            if product_exposure_logs:
+                if nth is not None and str(nth).strip() != '':
+                    pe_filepath = Path(f'json/tracking_product_exposure_{module_safe}({nth}).json')
+                else:
+                    pe_filepath = Path(f'json/tracking_product_exposure_{module_safe}.json')
+                pe_filepath.parent.mkdir(parents=True, exist_ok=True)
+                with open(pe_filepath, 'w', encoding='utf-8') as f:
+                    json.dump(product_exposure_logs, f, ensure_ascii=False, indent=2, default=str)
+                logger.info(f"Product Exposure 로그 저장 완료: {pe_filepath.resolve()} (로그 개수: {len(product_exposure_logs)})")
+            else:
+                logger.debug(f"SPM '{module_spm}'에 해당하는 Product Exposure 로그가 없어 별도 파일을 저장하지 않습니다.")
+        else:
+            logger.debug(f"모듈 '{module_title}'의 SPM이 없어 Product Exposure 별도 저장을 건너뜁니다.")
     except Exception as e:
         logger.error(f"트래킹 로그 JSON 저장 중 오류 발생: {e}", exc_info=True)
