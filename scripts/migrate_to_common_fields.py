@@ -1,5 +1,5 @@
 """
-기존 config 파일 마이그레이션 스크립트
+기존 트래킹 스키마 파일 마이그레이션 스크립트
 이벤트 타입별 공통 필드를 제거하여 모듈별 고유 필드만 남김
 """
 import json
@@ -124,13 +124,13 @@ def migrate_config_file(config_path: Path,
 
 def main():
     parser = argparse.ArgumentParser(
-        description='기존 config 파일에서 이벤트 타입별 공통 필드 제거'
+        description='기존 트래킹 스키마 파일에서 이벤트 타입별 공통 필드 제거'
     )
     parser.add_argument(
         '--config-dir',
         type=str,
         default=None,
-        help='config 디렉토리 경로 (기본값: config/)'
+        help='트래킹 스키마 디렉토리 경로 (기본값: tracking_schemas/)'
     )
     parser.add_argument(
         '--file',
@@ -160,14 +160,14 @@ def main():
         sys.exit(1)
     print(f"공통 필드 로드 완료: {len(common_fields_data)}개 이벤트 타입")
     
-    # config 디렉토리 결정
+    # 트래킹 스키마 디렉토리 결정
     if args.config_dir:
         config_dir = Path(args.config_dir)
     else:
-        config_dir = project_root / 'config'
+        config_dir = project_root / 'tracking_schemas'
     
     if not config_dir.exists():
-        print(f"[ERROR] config 디렉토리를 찾을 수 없습니다: {config_dir}")
+        print(f"[ERROR] tracking_schemas 디렉토리를 찾을 수 없습니다: {config_dir}")
         sys.exit(1)
     
     # 마이그레이션할 파일 목록
@@ -182,7 +182,7 @@ def main():
             print(f"[ERROR] 파일을 찾을 수 없습니다: {file_path}")
             sys.exit(1)
     else:
-        # 모든 config 파일
+        # 모든 스키마 파일
         for area_dir in config_dir.iterdir():
             if not area_dir.is_dir() or area_dir.name.startswith('_'):
                 continue
