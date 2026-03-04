@@ -51,28 +51,85 @@ G마켓 웹사이트의 사용자 트래킹 로그를 자동으로 수집하고 
 ```
 user_tracking_automation_mweb/
 ├── tracking_schemas/                 # 트래킹 이벤트 검증용 스키마(JSON)
-│   ├── SRP/                          # 검색 결과(SRP) 모듈 설정
-│   ├── LP/                           # 리스트/랜딩(LP) 모듈 설정
-│   ├── CART/                         # 장바구니 영역 설정
-│   ├── MY/                           # MY 영역 설정
-│   ├── ORDER/                        # 주문완료 영역 설정
+│   ├── SRP/                          # 검색 결과(SRP) 모듈
+│   ├── LP/                           # 리스트/랜딩(LP) 모듈
+│   ├── PDP/                          # 상품 상세(PDP) 모듈
+│   ├── JFY/                          # JFY(이런 상품은 어때요) 모듈
+│   ├── HOME/                         # 홈 모듈
+│   ├── CART/                         # 장바구니 영역
+│   ├── MY/                           # MY 영역
+│   ├── ORDER/                        # 주문완료 영역
 │   ├── _common_fields.json           # 공통 필드 정의
 │   └── _common_fields_by_event.json  # 이벤트 타입별 공통 필드
-├── features/                         # BDD feature 파일
-│   ├── srp_tracking.feature
-│   ├── lp_tracking.feature
-│   ├── cart_tracking.feature
-│   ├── my_tracking.feature
-│   └── order_complete_tracking.feature
+├── features/                         # BDD feature 파일 (환경별 분리)
+│   ├── dev/                          # 개발 환경 시나리오
+│   │   └── pdpjfy_tracking.feature
+│   └── prod/                         # 운영 환경 시나리오
+│       ├── srp_tracking.feature
+│       ├── srp_tracking2.feature
+│       ├── lp_tracking.feature
+│       ├── pdp_tracking.feature
+│       ├── pdp_tracking2.feature
+│       ├── cart_tracking.feature
+│       ├── my_tracking.feature
+│       ├── order_complete_tracking.feature
+│       ├── rvh_tracking.feature
+│       └── ...
+├── test/                             # pytest feature 로더 (환경별)
+│   ├── dev/                          # dev feature 실행 엔트리
+│   │   └── test_jfy.py
+│   └── prod/
+│       ├── test_srp.py
+│       ├── test_lp.py
+│       ├── test_pdp.py
+│       ├── test_cart.py
+│       ├── test_my.py
+│       ├── test_order.py
+│       ├── test_home.py
+│       └── ...
 ├── steps/                            # BDD step definitions
+│   ├── srp_lp_steps.py
+│   ├── product_steps.py
+│   ├── cart_steps.py
+│   ├── checkout_steps.py
+│   ├── order_steps.py
+│   ├── my_steps.py
+│   ├── home_steps.py
+│   ├── tracking_steps.py
+│   ├── tracking_validation_steps.py
+│   └── login_steps.py
 ├── pages/                            # Playwright Page Object Model
+│   ├── base_page.py
+│   ├── search_page.py
+│   ├── list_page.py
+│   ├── product_page.py
+│   ├── cart_page.py
+│   ├── order_page.py
+│   ├── home_page.py
+│   ├── my_page.py
+│   ├── login_page.py
+│   └── VipPage.py
 ├── utils/                            # 트래킹/검증/연동 유틸
+│   ├── NetworkTracker.py             # 네트워크 로그 수집·분류
+│   ├── validation_helpers.py         # 정합성 검증
+│   ├── common_fields.py              # 공통 필드 로드
+│   ├── urls.py                       # 환경별 URL (config.json의 environment 연동)
+│   ├── credentials.py               # 로그인 계정
+│   ├── frontend_helpers.py
+│   └── google_sheets_sync.py
 ├── scripts/                          # 데이터 변환/검증 보조 스크립트
-├── test_*.py                         # feature 로더 테스트 엔트리
-├── conftest.py                       # fixture 및 공통 훅
+│   ├── json_to_sheets.py             # JSON → Google Sheets
+│   ├── sheets_to_json.py             # Google Sheets → tracking_schemas JSON
+│   ├── analyze_common_fields.py       # 공통 필드 추출
+│   ├── migrate_to_common_fields.py   # 스키마 마이그레이션
+│   ├── compare_config_tracking.py
+│   └── test_common_fields.py
+├── json/                             # 테스트 실행 시 생성되는 트래킹 로그 저장 (선택)
+├── conftest.py                       # fixture, 브라우저 세션, TestRail 훅
 ├── pytest.ini                        # pytest 실행 설정
-├── config.json                       # 실행 환경/TestRail/시트 설정
+├── config.json                       # 실행 환경/TestRail/시트 설정 (environment, driver 등)
 ├── requirements.txt                  # 의존성 목록
+├── Pipfile / Pipfile.lock            # pipenv 사용 시
 └── README.md
 ```
 
@@ -80,7 +137,7 @@ user_tracking_automation_mweb/
 
 ### 필수 요구사항
 
-- Python 3.8 이상
+- Python 3.11
 - Playwright
 - pytest
 - pytest-bdd
@@ -93,86 +150,99 @@ user_tracking_automation_mweb/
 # 의존성 설치
 pip install -r requirements.txt
 
-# Playwright 브라우저 설치
-playwright install chromium
+# Playwright 브라우저 설치 (기본 브라우저)
+playwright install
 ```
 
 #### pipenv 사용
 
+pipenv를 사용할 때는 **Pipfile**이 의존성 목록이므로 `requirements.txt`는 사용하지 않습니다.
+
 ```bash
-# 의존성 설치 (Pipfile 기반)
+# 의존성 설치 (Pipfile 기준)
 pipenv install
 
-# Playwright 브라우저 설치
-pipenv run playwright install chromium
+# Playwright 브라우저 설치 (가상환경 안에서는 playwright install 만 하면 됨)
+pipenv run playwright install
 ```
 
 ### 실행
 
+테스트는 **환경별**로 `test/prod/` 또는 `test/dev/` 아래의 로더를 통해 실행합니다. 각 로더는 `features/prod/` 또는 `features/dev/`의 feature 파일을 참조합니다.
+
+### 실행 전 `.env` 설정
+
+테스트 실행 전 프로젝트 루트에 `.env` 파일이 필요합니다.
+
+- 로그인 계정 키(필수): `NORMAL_MEMBER_ID`, `NORMAL_MEMBER_PASSWORD`, `CLUB_MEMBER_ID`, `CLUB_MEMBER_PASSWORD`, `BUSINESS_MEMBER_ID`, `BUSINESS_MEMBER_PASSWORD`
+- `config.json`의 `environment`가 `dev`이면 `DEV_` 접두 키를 사용합니다(예: `DEV_NORMAL_MEMBER_ID`, `DEV_NORMAL_MEMBER_PASSWORD`)
+- TestRail 연동(`testrail_report = "Y"`) 시: `TESTRAIL_USERNAME`, `TESTRAIL_PASSWORD` 추가 필요
+
 #### pip 사용
 
 ```bash
-# 모든 Feature 파일 실행
-pytest features/ -v
+# 운영(prod) 전체 시나리오 실행
+pytest test/prod/ -v
 
-# 특정 Feature 파일 실행
-pytest features/srp_tracking.feature -v
+# 개발(dev) 시나리오만 실행 (예: JFY)
+pytest test/dev/test_jfy.py -v
 
-# 로그 레벨 설정하여 실행
-pytest features/ -v --log-cli-level=INFO
+# 특정 feature 로더만 실행
+pytest test/prod/test_srp.py -v
+pytest test/prod/test_pdp.py -v
 
-# 특정 시나리오만 실행
-pytest features/srp_tracking.feature::Scenario -v
+# 로그 레벨 설정
+pytest test/prod/ -v --log-cli-level=INFO
 ```
 
 #### pipenv 사용
 
 ```bash
-# 가상환경 활성화 후 실행
 pipenv shell
-pytest features/ -v
+pytest test/prod/ -v
 
-# 또는 pipenv run으로 직접 실행
-pipenv run pytest features/ -v
-pipenv run pytest features/srp_tracking.feature -v
-pipenv run pytest features/ -v --log-cli-level=INFO
-pipenv run pytest features/srp_tracking.feature::Scenario -v
+# 또는
+pipenv run pytest test/prod/ -v
+pipenv run pytest test/dev/test_jfy.py -v
 ```
 
 ## ⚙️ 설정 파일
 
 ### config.json
 
-프로젝트 루트의 `config.json` 파일에 다음 정보를 설정합니다:
+프로젝트 루트의 `config.json`은 **실행 환경·TestRail·시트** 설정용입니다. `tracking_schemas/`(트래킹 검증 스키마)와는 별도입니다.
+
+**주요 키:**
+- `environment`: 실행 환경 (`"dev"` | `"stg"` | `"prod"`) — `utils/urls.py`에서 해당 환경 URL 사용
+- `driver`: 브라우저 (예: `"Chrome"`)
+- `match_rate`: 검증 시 허용 매칭률 (예: `0.88`)
+- `testrail_report`: TestRail 보고 여부 (예: `"Y"` / `"N"`)
+- `tr_url`, `project_id`, `suite_id`, `section_id`, `milestone_id`: TestRail 연동
+- `spreadsheet_id`: Google Sheets 연동 시 스프레드시트 ID
+- `case_id`: (선택) 테스트 케이스 ID 목록
+
+예시:
 
 ```json
 {
+  "environment": "dev",
+  "driver": "Chrome",
+  "match_rate": 0.88,
+  "testrail_report": "N",
   "tr_url": "http://172.30.2.20",
   "project_id": "212",
   "suite_id": "1999",
-  "section_id": "69751",
+  "section_id": "76275",
   "milestone_id": "1564",
-  "environment": "prod",
-  "urls": {
-    "dev": {
-      "base": "https://www-dev.gmarket.co.kr",
-      "item": "https://item-dev.gmarket.co.kr"
-    },
-    "stg": {
-      "base": "https://www-stg.gmarket.co.kr",
-      "item": "https://item-staging.gmarket.co.kr"
-    },
-    "prod": {
-      "base": "https://www.gmarket.co.kr",
-      "item": "https://item.gmarket.co.kr"
-    }
-  }
+  "spreadsheet_id": "1iv_ok0kTzWWPhzyRRbpEEnH3DPGE7VSJg2mmdlRPD78"
 }
 ```
 
+환경별 URL(base, cart, checkout, my 등)은 `utils/urls.py`에 정의되어 있으며, `config.json`의 `environment` 값에 따라 자동 선택됩니다.
+
 ### 영역별 트래킹 스키마 구조
 
-프로젝트는 영역별로 트래킹 검증 스키마(JSON)를 분리하여 관리합니다:
+트래킹 검증 스키마(JSON)는 영역·모듈별로 `tracking_schemas/` 아래에 있습니다:
 
 ```
 tracking_schemas/
@@ -180,9 +250,13 @@ tracking_schemas/
 │   ├── 먼저 둘러보세요.json
 │   ├── 일반상품.json
 │   └── ...
-├── PDP/                    # Product Detail Page (향후)
-├── HOME/                   # Home Page (향후)
-└── CART/                   # Shopping Cart (향후)
+├── LP/                     # List/Landing Page
+├── PDP/                    # Product Detail Page
+├── JFY/                    # JFY(이런 상품은 어때요)
+├── HOME/
+├── CART/
+├── MY/
+└── ORDER/
 ```
 
 ### 모듈 설정 파일 형식
@@ -247,7 +321,7 @@ tracking_schemas/
 - **빈 문자열 `""`**: 정확히 빈 값이어야 함 (값이 있으면 검증 실패)
 - **리스트 값 `["값1", "값2"]`**: 실제 값이 리스트 내 어느 값과든 일치하면 통과 (OR 조건)
 
-자세한 내용은 `docs/project_structure.md`를 참고하세요.
+자세한 필드 구조는 `tracking_schemas/` 내 JSON 파일과 `utils/validation_helpers.py` 주석을 참고하세요.
 
 ## 🔧 주요 컴포넌트
 
@@ -325,14 +399,11 @@ Feature: G마켓 SRP 트래킹 로그 정합성 검증
 
 ### 테스트 결과
 
-테스트 실행 후 `json/` 디렉토리에 다음 파일들이 생성됩니다:
+테스트 실행 시 트래킹 로그를 저장하는 경우 `json/` 디렉토리에 예시와 같은 파일들이 생성될 수 있습니다:
 
 - `tracking_pv_{goodscode}_{timestamp}.json`: PV 로그
-- `tracking_module_exposure_{goodscode}_{timestamp}.json`: Module Exposure 로그
-- `tracking_product_exposure_{goodscode}_{timestamp}.json`: Product Exposure 로그
-- `tracking_product_click_{goodscode}_{timestamp}.json`: Product Click 로그
-- `tracking_pdp_pv_{goodscode}_{timestamp}.json`: PDP PV 로그
-- `tracking_all_{module_title}.json`: 전체 트래킹 로그 (모듈 타이틀 사용, 공백 등은 `_`로 치환)
+- `tracking_module_exposure_*`, `tracking_product_exposure_*`, `tracking_product_click_*`, `tracking_pdp_pv_*`: 이벤트별 로그
+- `tracking_all_{module_title}.json`: 전체 트래킹 로그 (모듈 타이틀 기준, 공백 등은 `_`로 치환)
 
 ## 🔗 TestRail 연동
 
@@ -403,9 +474,13 @@ python scripts/sheets_to_json.py \
    - 테스트 실행 중 네트워크 요청이 완료될 때까지 충분한 대기 시간을 확보해야 합니다.
    - `time.sleep(2)` 또는 `page.wait_for_load_state('networkidle')` 사용을 권장합니다.
 
-4. **영역 추론**
-   - Feature 파일명이 `{area}_tracking.feature` 형식이어야 영역 자동 추론이 작동합니다.
-   - 예: `srp_tracking.feature` → `SRP` 영역
+4. **환경·영역 구분**
+   - `config.json`의 `environment`로 dev/stg/prod가 결정되며, URL은 `utils/urls.py`에서 선택됩니다.
+   - Feature 파일명이 `{area}_tracking.feature` 형식이면 영역 자동 추론이 작동합니다 (예: `srp_tracking.feature` → `SRP`).
+
+5. **브라우저 실행/로그인 상태 파일**
+   - 기본 설정은 `headless=False`로 동작하여 실행 시 브라우저 창이 표시됩니다.
+   - 세션 시작 시 로그인 후 `state.json`을 생성(또는 갱신)해 테스트 컨텍스트에 사용합니다.
 
 ## 🐛 문제 해결
 
@@ -435,10 +510,14 @@ python scripts/sheets_to_json.py \
 
 ## 📚 참고 파일
 
-- `README.md`: 프로젝트 개요/실행 방법
-- `conftest.py`: fixture/브라우저 세션/로그인 상태 처리
-- `utils/NetworkTracker.py`: 네트워크 로그 수집/분류
-- `utils/validation_helpers.py`: 정합성 검증 핵심 로직
+| 파일 | 역할 |
+|------|------|
+| `config.json` | 실행 환경, TestRail, 시트 설정 (트래킹 스키마와 별도) |
+| `tracking_schemas/` | 트래킹 이벤트 검증용 스키마(JSON) |
+| `conftest.py` | fixture, 브라우저 세션, TestRail 훅 |
+| `utils/NetworkTracker.py` | 네트워크 로그 수집·분류 |
+| `utils/validation_helpers.py` | 정합성 검증 로직 |
+| `utils/urls.py` | 환경별 URL (config.json의 `environment` 연동) |
 
 ## 📄 라이선스
 

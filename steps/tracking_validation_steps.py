@@ -719,21 +719,21 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None)
                 json.dump(all_logs, f, ensure_ascii=False, indent=2, default=str)
             logger.info(f"전체 트래킹 로그 저장 완료: {all_filepath.resolve()} (로그 개수: {len(all_logs)})")
 
-        # Product Exposure 이벤트만 SPM 기준으로 별도 파일 저장 (상품번호 필터 없음)
-        if module_spm:
-            product_exposure_logs = tracker.get_product_exposure_logs_by_spm(module_spm)
-            if product_exposure_logs:
-                if nth is not None and str(nth).strip() != '':
-                    pe_filepath = Path(f'json/tracking_product_exposure_{module_safe}({nth}).json')
-                else:
-                    pe_filepath = Path(f'json/tracking_product_exposure_{module_safe}.json')
-                pe_filepath.parent.mkdir(parents=True, exist_ok=True)
-                with open(pe_filepath, 'w', encoding='utf-8') as f:
-                    json.dump(product_exposure_logs, f, ensure_ascii=False, indent=2, default=str)
-                logger.info(f"Product Exposure 로그 저장 완료: {pe_filepath.resolve()} (로그 개수: {len(product_exposure_logs)})")
-            else:
-                logger.debug(f"SPM '{module_spm}'에 해당하는 Product Exposure 로그가 없어 별도 파일을 저장하지 않습니다.")
-        else:
-            logger.debug(f"모듈 '{module_title}'의 SPM이 없어 Product Exposure 별도 저장을 건너뜁니다.")
+        # # Product Exposure 이벤트만 SPM 기준으로 별도 파일 저장 (상품번호 필터 없음)
+        # if module_spm:
+        #     product_exposure_logs = tracker.get_product_exposure_logs_by_spm(module_spm)
+        #     if product_exposure_logs:
+        #         if nth is not None and str(nth).strip() != '':
+        #             pe_filepath = Path(f'json/tracking_product_exposure_{module_safe}({nth}).json')
+        #         else:
+        #             pe_filepath = Path(f'json/tracking_product_exposure_{module_safe}.json')
+        #         pe_filepath.parent.mkdir(parents=True, exist_ok=True)
+        #         with open(pe_filepath, 'w', encoding='utf-8') as f:
+        #             json.dump(product_exposure_logs, f, ensure_ascii=False, indent=2, default=str)
+        #         logger.info(f"Product Exposure 로그 저장 완료: {pe_filepath.resolve()} (로그 개수: {len(product_exposure_logs)})")
+        #     else:
+        #         logger.debug(f"SPM '{module_spm}'에 해당하는 Product Exposure 로그가 없어 별도 파일을 저장하지 않습니다.")
+        # else:
+        #     logger.debug(f"모듈 '{module_title}'의 SPM이 없어 Product Exposure 별도 저장을 건너뜁니다.")
     except Exception as e:
         logger.error(f"트래킹 로그 JSON 저장 중 오류 발생: {e}", exc_info=True)
