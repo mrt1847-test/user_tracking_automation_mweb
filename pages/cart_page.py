@@ -103,18 +103,16 @@ class CartPage(BasePage):
         loc.wait_for(state="visible", timeout=self.timeout)
         logger.info("장바구니 페이지 로드 확인됨")
         
-    def select_all_and_delete(self, until_empty: bool = True, max_rounds: int = 30) -> None:
+    def select_all_and_delete(self, max_rounds: int = 3) -> None:
         """
-        전체 선택 후 선택삭제 수행.
-        전체 선택 체크박스를 체크한 뒤, 선택삭제(btn_del) 버튼을 클릭하고
-        확인 얼럿에서 '확인'을 눌러 선택된 상품을 삭제한다.
+        '장바구니에 담긴 상품이 없습니다.'(strong.msg)가 노출될 때까지 전체 선택 후 선택삭제를 반복.
+        전체 선택 체크박스 체크 → 선택삭제 클릭 → 확인 얼럿 수락을 한 라운드로 반복한다.
 
         Args:
-            until_empty: True이면 '장바구니에 담긴 상품이 없습니다.'(strong.msg)가 노출될 때까지 반복
-            max_rounds: until_empty일 때 최대 반복 횟수 (무한 루프 방지)
+            max_rounds: 최대 반복 횟수 (무한 루프 방지)
         """
-        empty_msg = self.page.locator("strong.msg", has_text="장바구니에 담긴 상품이 없습니다")
-        for round_num in range(max_rounds):
+        empty_msg = self.page.locator("strong.msg", has_text="장바구니에 담긴 상품이 없습니다.")
+        for _ in range(max_rounds):
             if empty_msg.is_visible():
                 logger.debug("장바구니가 비어 있음, 선택삭제 반복 종료")
                 return
@@ -126,8 +124,6 @@ class CartPage(BasePage):
                 logger.debug("전체 선택 이미 체크됨")
             self.click_and_expect_dialog(selector="button.btn_del:has-text('선택삭제')")
             logger.debug("선택삭제 버튼 클릭, 확인 얼럿 수락")
-            if not until_empty:
-                return
             time.sleep(0.5)
         logger.warning("선택삭제 반복이 max_rounds(%d)에 도달하여 종료", max_rounds)
 
