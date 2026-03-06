@@ -114,6 +114,9 @@ class CartPage(BasePage):
             loc.check()
             logger.debug("전체 선택 체크 완료")
         else:
+            loc.check()
+            time.sleep(1)
+            loc.check()
             logger.debug("전체 선택 이미 체크됨")
 
         self.click_and_expect_dialog(selector="button.btn_del:has-text('선택삭제')")

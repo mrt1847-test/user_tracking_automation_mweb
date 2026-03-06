@@ -275,11 +275,13 @@ def user_confirms_and_clicks_product_in_pdp_module(browser_session, module_title
         except Exception as e:
             logger.error(f"상품 클릭 실패: {e}", exc_info=True)
             record_frontend_failure(browser_session, bdd_context, f"상품 클릭 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다")
-            # goodscode는 저장 (일부 정보라도 보존)
+            # goodscode, module_title, is_ad 저장 (검증에서 <is_ad> 치환에 필요)
             if 'goodscode' in locals():
                 bdd_context.store['goodscode'] = goodscode
             if 'module_title' not in bdd_context.store:
                 bdd_context.store['module_title'] = module_title
+            if 'is_ad' in locals():
+                bdd_context.store['is_ad'] = is_ad
                 
     except Exception as e:
         # 예상치 못한 예외 처리
@@ -545,12 +547,14 @@ def user_confirms_and_clicks_product_in_BuyBox_module(browser_session, module_ti
         except Exception as e:
             logger.error(f"상품 클릭 실패: {e}", exc_info=True)
             record_frontend_failure(browser_session, bdd_context, f"상품 클릭 실패: {str(e)}", "사용자가 모듈 내 상품을 확인하고 클릭한다")
-            # goodscode는 저장 (일부 정보라도 보존)
+            # goodscode, module_title, is_ad 저장 (검증에서 <is_ad> 치환에 필요)
             if 'goodscode' in locals():
                 bdd_context.store['goodscode'] = goodscode
             if 'module_title' not in bdd_context.store:
                 bdd_context.store['module_title'] = module_title
-                
+            if 'is_ad' in locals():
+                bdd_context.store['is_ad'] = is_ad
+
     except Exception as e:
         # 예상치 못한 예외 처리
         logger.error(f"프론트 동작 중 예외 발생: {e}", exc_info=True)

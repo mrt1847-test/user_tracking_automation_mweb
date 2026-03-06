@@ -671,7 +671,13 @@ def pytest_bdd_after_step(request, feature, scenario, step, step_func, step_func
                     if passed_fields and isinstance(passed_fields, dict) and len(passed_fields) > 0:
                         comment += f"\n\n[통과한 필드]\n"
                         for field, value in passed_fields.items():
-                            comment += f"{field}: {value}\n"
+                            if isinstance(value, dict):
+                                expected = value.get("expected")
+                                actual = value.get("actual")
+                                comment += f"{field}: expected={expected}, actual={actual}\n"
+                            else:
+                                # 하위 호환: 과거 포맷(값만 저장된 경우)
+                                comment += f"{field}: {value}\n"
             
             # 로그 수집
             log_content = _collect_step_logs()

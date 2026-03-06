@@ -59,8 +59,12 @@ class HomePage(BasePage):
         """
         runtext = f"Home > {keyword} 검색"
         logger.info("%s 시작", runtext)
-        # exact=True: '검색어 초기화' 버튼 등 다른 '검색' 관련 버튼과 구분해 검색 오픈 버튼만 클릭 (strict mode 방지)
-        self.page.get_by_role("button", name="검색", exact=True).click()
+        # 검색 오픈 버튼: button.link__search 우선, 없으면 role="button" name="검색" 폴백
+        search_open = self.page.locator("button.link__search")
+        if search_open.count() > 0:
+            search_open.first.click()
+        else:
+            self.page.get_by_role("button", name="검색", exact=True).click()
         # 검색어 입력 영역(span.box__text-field 내 input[name='keyword'])이 뜰 때까지 대기
         search_input = self.page.locator("span.box__text-field input[name='keyword']")
         search_input.wait_for(state="visible", timeout=10000)

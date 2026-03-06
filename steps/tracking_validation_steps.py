@@ -105,7 +105,13 @@ def _check_and_validate_event_logs(
         if passed_fields and isinstance(passed_fields, dict):
             error_message += f"\n\n[통과한 필드]\n"
             for field, value in passed_fields.items():
-                error_message += f"{field}: {value}\n"
+                if isinstance(value, dict):
+                    expected = value.get("expected")
+                    actual = value.get("actual")
+                    error_message += f"{field}: expected={expected}, actual={actual}\n"
+                else:
+                    # 하위 호환: 과거 포맷(값만 저장된 경우)
+                    error_message += f"{field}: {value}\n"
         logger.error(error_message)
         
         # TestRail 기록을 위해 실패 플래그 설정
@@ -201,7 +207,13 @@ def then_pv_logs_should_pass_validation(bdd_context):
             if passed_fields and isinstance(passed_fields, dict):
                 error_message += f"\n\n[통과한 필드]\n"
                 for field, value in passed_fields.items():
-                    error_message += f"{field}: {value}\n"
+                    if isinstance(value, dict):
+                        expected = value.get("expected")
+                        actual = value.get("actual")
+                        error_message += f"{field}: expected={expected}, actual={actual}\n"
+                    else:
+                        # 하위 호환: 과거 포맷(값만 저장된 경우)
+                        error_message += f"{field}: {value}\n"
             logger.error(error_message)
             # TestRail 기록을 위해 실패 플래그 설정 (TC 번호는 없지만)
             bdd_context['validation_failed'] = True

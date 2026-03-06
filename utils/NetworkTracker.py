@@ -1375,8 +1375,8 @@ class NetworkTracker:
             event_type: 이벤트 타입 ('Product Exposure', 'Product Click' 등)
         
         Returns:
-            (검증 성공 여부, 통과한 필드와 기대값 딕셔너리) 튜플
-            - 검증 성공 시: (True, {필드명: 기대값} 딕셔너리)
+            (검증 성공 여부, 통과한 필드 정보 딕셔너리) 튜플
+            - 검증 성공 시: (True, {필드명: {"expected": 기대값, "actual": 실제값}})
             - 검증 실패 시: AssertionError 발생
         
         Raises:
@@ -1490,7 +1490,7 @@ class NetworkTracker:
         
         # 기대 데이터 검증 (재귀적 탐색 사용)
         errors = []
-        passed_fields = {}  # 통과한 필드와 기대값 딕셔너리 {필드명: 기대값}
+        passed_fields = {}  # 통과한 필드 정보 {필드명: {"expected": 기대값, "actual": 실제값}}
         for key, expected_value in expected_data.items():
             actual_value = None
             
@@ -1508,7 +1508,10 @@ class NetworkTracker:
             field_passed = False
             # skip 값 처리: "__SKIP__"인 경우 필드 존재 여부와 값을 완전히 무시 (테스트레일 기록용으로 passed_fields에 skip 표시)
             if isinstance(expected_value, str) and expected_value == "__SKIP__":
-                passed_fields[key] = "(skip)"
+                passed_fields[key] = {
+                    "expected": "__SKIP__",
+                    "actual": "(skip)",
+                }
                 continue
             # 빈 문자열("") 기대값 처리: actual_value가 None이어도 통과 (필드가 없어도 빈 값으로 간주)
             if isinstance(expected_value, str) and expected_value == "":
@@ -1593,9 +1596,12 @@ class NetworkTracker:
                 else:
                     field_passed = True
             
-            # 필드가 통과했으면 딕셔너리에 추가 (필드명: 기대값)
+            # 필드가 통과했으면 기대값/실제값을 함께 기록
             if field_passed:
-                passed_fields[key] = expected_value
+                passed_fields[key] = {
+                    "expected": expected_value,
+                    "actual": actual_value,
+                }
         
         if errors:
             error_msg = "\n".join(errors)
@@ -1627,4 +1633,3 @@ class NetworkTracker:
         Context manager 종료 시 자동으로 트래킹 중지
         """
         self.stop()
-

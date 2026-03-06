@@ -560,10 +560,11 @@ def validate_event_type_logs(
         exclude_fields: 검증에서 제외할 필드 목록
     
     Returns:
-        (성공 여부, 에러 메시지 리스트, 통과한 필드와 기대값 딕셔너리)
+        (성공 여부, 에러 메시지 리스트, 통과한 필드 정보 딕셔너리)
+        - 통과한 필드 정보: {필드명: {"expected": 기대값, "actual": 실제값}}
     """
     errors = []
-    all_passed_fields = {}  # 모든 로그에서 통과한 필드와 값 딕셔너리
+    all_passed_fields = {}  # 모든 로그에서 통과한 필드 정보 딕셔너리
     
     # 모듈 설정 로드
     if module_config is None:

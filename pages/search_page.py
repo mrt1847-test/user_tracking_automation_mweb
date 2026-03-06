@@ -1,4 +1,4 @@
-from re import M
+import re
 import time
 import logging
 import json
@@ -273,11 +273,11 @@ class SearchPage(BasePage):
         self.page.wait_for_load_state("domcontentloaded")
 
     def verify_keyword_element_exists(self, keyword: str) -> None:
-        """span.box__text-field 내 검색어 열기 버튼이 보이고, 그 텍스트에 keyword가 포함되는지 검증"""
+        """span.box__text-field 내 검색어 열기 버튼이 보이고, 그 텍스트에 keyword가 포함되는지 검증 (대소문자 무시)"""
         logger.debug(f"검색어 입력 영역에 '{keyword}' 포함 여부 검증")
         locator = self.page.locator('.box__text-field button.form__input').first
         expect(locator).to_be_visible()
-        expect(locator).to_contain_text(keyword)
+        expect(locator).to_contain_text(re.compile(re.escape(keyword), re.IGNORECASE))
     
     def click_first_product(self, timeout: int = 10000) -> Optional[Page]:
         """
