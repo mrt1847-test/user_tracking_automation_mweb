@@ -383,7 +383,7 @@ class SearchPage(BasePage):
             return wait_and_return(self.page.get_by_text("믿고 사는 MD's Pick")).locator("xpath=..")
         elif module_title == "장바구니 모듈":
             return wait_and_return(self.page.locator("h3.text__title", has_text="장바구니"))
-        elif module_title == "카탈로그 모듈":
+        elif module_title in ("카탈로그 모듈", "카탈로그 그룹형", "카탈로그 일반형", "카탈로그 속성형"):
             return wait_and_return(self.page.locator(".text__title", has_text="판매인기"))
         elif module_title == "0번 구좌":
             banner = self.page.locator(".text__user", has_text="이 상품을 추천드려요")
@@ -394,44 +394,49 @@ class SearchPage(BasePage):
                 return wait_and_return(self.page.locator(".text__user", has_text="위한 추천상품이에요"))
         return wait_and_return(self.page.locator(".text__banner", has_text=module_title))
 
-    def get_product_in_module(self, parent_locator: Locator) -> Locator:
+    def get_product_in_module(self, parent_locator: Locator, index: int = 0) -> Locator:
         """
         모듈 내 상품 요소 찾기
         
         Args:
             parent_locator: 모듈 부모 Locator 객체
+            index: 선택할 상품 인덱스 (0부터 시작)
             
         Returns:
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        return parent_locator.locator("div.box__itemcard  a").first
+        nth_index = max(int(index), 0) * 2
+        return parent_locator.locator("div.box__itemcard  a").nth(nth_index)
     
-    def get_product_in_module_type2(self, parent_locator: Locator) -> Locator:
+    def get_product_in_module_type2(self, parent_locator: Locator, index: int = 0) -> Locator:
         """
         모듈 내 상품 요소 찾기
         
         Args:
             parent_locator: 모듈 부모 Locator 객체
+            index: 선택할 상품 인덱스 (0부터 시작)
             
         Returns:
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        return parent_locator.locator("div.box__itemcard a").first
+        nth_index = max(int(index), 0) * 2
+        return parent_locator.locator("div.box__itemcard a").nth(nth_index)
     
-    def get_product_in_module_type3(self, parent_locator: Locator) -> Locator:
+    def get_product_in_module_type3(self, parent_locator: Locator, index: int = 0) -> Locator:
         """
         모듈 내 상품 요소 찾기
         
         Args:
             parent_locator: 모듈 부모 Locator 객체
+            index: 선택할 상품 인덱스 (0부터 시작)
             
         Returns:
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        return parent_locator.locator(".list-item > a").first
+        return parent_locator.locator(".list-item > a").nth(max(int(index), 0))
 
     def wait_for_new_page(self):
         """
@@ -569,7 +574,10 @@ class SearchPage(BasePage):
             "G마켓 인기 상품": "N",
             "백화점픽": "N",
             "연관키워드": "Y",
-            "최하단캐러셀": "Y",  
+            "최하단캐러셀": "Y",
+            "카탈로그 그룹형" : "N",
+            "카탈로그 일반형" : "N",
+            "카탈로그 속성형" : "N"
         }
         
         if modulel_title not in MODULE_AD_CHECK:
@@ -603,3 +611,30 @@ class SearchPage(BasePage):
         except Exception as e:
             logger.warning(f"광고 태그 확인 중 오류 발생: {e}")
             return "N"
+
+    def click_more_button(self):
+        """
+        더보기 버튼을 클릭한다
+        """
+        logger.debug("더보기 버튼 클릭")
+        more_button = self.page.locator("button", has_text="상품 더보기").first
+        more_button.wait_for(state="visible", timeout=10000)
+        more_button.scroll_into_view_if_needed()
+        more_button.click()
+        logger.debug("더보기 버튼 클릭 완료")
+    
+    def select_sort_option(self, sort_option: str):
+        """
+        정렬을 선택한다
+        """
+        logger.debug(f"정렬 선택: {sort_option}")
+        sort_button = self.page.locator("button#sorting, button.button__sorting").first
+        sort_button.wait_for(state="visible", timeout=10000)
+        sort_button.scroll_into_view_if_needed()
+        sort_button.click()
+        sort_option_item = self.page.locator("#sorting_list li", has_text=sort_option).first
+        sort_option_item.wait_for(state="visible", timeout=10000)
+        sort_option_link = sort_option_item.locator("a.link").first
+        sort_option_link.scroll_into_view_if_needed()
+        sort_option_link.click()
+        logger.debug("정렬 선택 완료")

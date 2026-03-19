@@ -148,8 +148,8 @@ def user_goes_to_top_search_module_page(browser_session, keyword, goodscode, bdd
             bdd_context.store['keyword'] = keyword
 
 
-@when(parsers.parse('사용자가 "{module_title}" 모듈 내 상품을 확인하고 클릭한다'))
-def user_confirms_and_clicks_product_in_module(browser_session, module_title, bdd_context):
+@when(parsers.parse('사용자가 "{module_title}" 모듈 내 {nth:d}번째 상품을 확인하고 클릭한다'))
+def user_confirms_and_clicks_product_in_module(browser_session, module_title, nth, bdd_context):
     """
     모듈 내 상품 노출 확인하고 클릭 (Atomic POM 조합)
     실패 시에도 다음 스텝으로 진행
@@ -164,18 +164,18 @@ def user_confirms_and_clicks_product_in_module(browser_session, module_title, bd
         
         # 모듈로 이동
         module = search_page.get_module_by_title(module_title)
-        search_page.scroll_module_into_view(module)
         time.sleep(2)
         ad_check = search_page.check_ad_item_in_srp_lp_module(module_title)
         
-        # 모듈 내 상품 찾기 (feature의 type1/type2 예시 모두 커버: 모듈별 선택자 분기)
+        # 모듈 내 상품 찾기 (모듈별 선택자 분기)
+        nth_idx = max(int(nth) - 1, 0)
         parent = search_page.get_module_parent(module, 3)
         if module_title == "4.5 이상":
-            product = search_page.get_product_in_module_type3(parent)
+            product = search_page.get_product_in_module_type3(parent, nth_idx)
         elif module_title in ("백화점 브랜드", "브랜드 인기상품", "MD's Pick", "백화점픽", "최하단캐러셀", "연관키워드"):
-            product = search_page.get_product_in_module_type2(parent)
+            product = search_page.get_product_in_module_type2(parent, nth_idx)
         else:
-            product = search_page.get_product_in_module(parent)
+            product = search_page.get_product_in_module(parent, nth_idx)
         search_page.scroll_product_into_view(product)
         
         # 상품 노출 확인 (실패 시 예외 발생)
@@ -239,8 +239,8 @@ def user_confirms_and_clicks_product_in_module(browser_session, module_title, bd
         if 'module_title' not in bdd_context.store:
             bdd_context.store['module_title'] = module_title
 
-@when(parsers.parse('사용자가 "{module_title}" 모듈 내 상품을 확인하고 클릭한다 (type2)'))
-def user_confirms_and_clicks_product_in_module_type2(browser_session, module_title, bdd_context):
+@when(parsers.parse('사용자가 "{module_title}" 모듈 내 {nth:d}번째 상품을 확인하고 클릭한다 (type2)'))
+def user_confirms_and_clicks_product_in_module_type2(browser_session, module_title, nth, bdd_context):
     """
     모듈 내 상품 노출 확인하고 클릭 (Atomic POM 조합)
     실패 시에도 다음 스텝으로 진행
@@ -260,11 +260,12 @@ def user_confirms_and_clicks_product_in_module_type2(browser_session, module_tit
         ad_check = search_page.check_ad_item_in_srp_lp_module(module_title)
         
         # 모듈 내 상품 찾기
+        nth_idx = max(int(nth) - 1, 0)
         parent = search_page.get_module_parent(module, 3)
         if module_title == "4.5 이상":
-            product = search_page.get_product_in_module_type3(parent)
+            product = search_page.get_product_in_module_type3(parent, nth_idx)
         else:
-            product = search_page.get_product_in_module_type2(parent)
+            product = search_page.get_product_in_module_type2(parent, nth_idx)
         search_page.scroll_product_into_view(product)
         
         # 상품 노출 확인 (실패 시 예외 발생)
@@ -471,3 +472,15 @@ def product_page_is_opened(browser_session, bdd_context):
         
     except Exception as e:
         logger.error(f"상품 페이지 이동 확인 중 예외 발생: {e}", exc_info=True)
+
+@given(parsers.parse('더보기 버튼을 클릭한다'))
+def click_more_button(browser_session, bdd_context):
+    """
+    더보기 버튼을 클릭한다
+    """
+    try:
+        search_page = SearchPage(browser_session.page)
+        search_page.click_more_button()
+    except Exception as e:
+        logger.error(f"더보기 버튼 클릭 실패: {e}", exc_info=True)
+        record_frontend_failure(browser_session, bdd_context, f"더보기 버튼 클릭 실패: {str(e)}", "더보기 버튼을 클릭한다")

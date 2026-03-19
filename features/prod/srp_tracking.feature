@@ -7,7 +7,7 @@ Feature: G마켓 SRP 트래킹 로그 정합성 검증
     When 사용자가"세탁세재""3386025906" 최상단 클릭아이템 모듈 패이지로 이동한다
     Then 검색 결과 페이지가 표시된다
     Given 검색 결과 페이지에 "최상단 클릭아이템" 모듈이 있다
-    When 사용자가 "최상단 클릭아이템" 모듈 내 상품을 확인하고 클릭한다
+    When 사용자가 "최상단 클릭아이템" 모듈 내 1번째 상품을 확인하고 클릭한다
     Then 상품 페이지로 이동되었다
     Then 모든 트래킹 로그를 JSON 파일로 저장함
     Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: C1228816)
@@ -22,7 +22,7 @@ Feature: G마켓 SRP 트래킹 로그 정합성 검증
     Then 검색 결과 페이지가 표시된다
     Given 사용자가 "<keyword>"을 검색했다
     And 검색 결과 페이지에 "<module_title>" 모듈이 있다
-    When 사용자가 "<module_title>" 모듈 내 상품을 확인하고 클릭한다
+    When 사용자가 "<module_title>" 모듈 내 1번째 상품을 확인하고 클릭한다
     Then 상품 페이지로 이동되었다
     Then 모든 트래킹 로그를 JSON 파일로 저장함
     Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: <tc_module_exposure>)
