@@ -385,6 +385,8 @@ class SearchPage(BasePage):
             return wait_and_return(self.page.locator("h3.text__title", has_text="장바구니"))
         elif module_title in ("카탈로그 모듈", "카탈로그 그룹형", "카탈로그 일반형", "카탈로그 속성형"):
             return wait_and_return(self.page.locator(".text__title", has_text="판매인기"))
+        elif module_title in ("판매 인기순", "상품평 많은순", "신규 상품순"):
+            return wait_and_return(self.page.locator(".box__component-header", has_text=module_title))
         elif module_title == "0번 구좌":
             banner = self.page.locator(".text__user", has_text="이 상품을 추천드려요")
             try:
@@ -577,7 +579,10 @@ class SearchPage(BasePage):
             "최하단캐러셀": "Y",
             "카탈로그 그룹형" : "N",
             "카탈로그 일반형" : "N",
-            "카탈로그 속성형" : "N"
+            "카탈로그 속성형" : "N",
+            "판매 인기순" : "N",
+            "상품평 많은순" : "N",
+            "신규 상품순" : "N"
         }
         
         if modulel_title not in MODULE_AD_CHECK:
@@ -614,7 +619,7 @@ class SearchPage(BasePage):
 
     def click_more_button(self):
         """
-        더보기 버튼을 클릭한다
+        '상품 더보기' 텍스트가 있는 버튼을 클릭한다.
         """
         logger.debug("더보기 버튼 클릭")
         more_button = self.page.locator("button", has_text="상품 더보기").first
@@ -625,7 +630,10 @@ class SearchPage(BasePage):
     
     def select_sort_option(self, sort_option: str):
         """
-        정렬을 선택한다
+        정렬 버튼 클릭 후 정렬 목록에서 옵션을 선택한다.
+        
+        Args:
+            sort_option: 선택할 정렬 옵션 텍스트 (예: 판매 인기순)
         """
         logger.debug(f"정렬 선택: {sort_option}")
         sort_button = self.page.locator("button#sorting, button.button__sorting").first
@@ -633,8 +641,41 @@ class SearchPage(BasePage):
         sort_button.scroll_into_view_if_needed()
         sort_button.click()
         sort_option_item = self.page.locator("#sorting_list li", has_text=sort_option).first
-        sort_option_item.wait_for(state="visible", timeout=10000)
+        try:
+            sort_option_item.wait_for(state="visible", timeout=5000)
+        except Exception:
+            logger.debug("정렬 목록 미노출 → 정렬 버튼 강제 클릭 재시도")
+            sort_button.scroll_into_view_if_needed()
+            sort_button.click(force=True)
+            sort_option_item.wait_for(state="visible", timeout=10000)
         sort_option_link = sort_option_item.locator("a.link").first
         sort_option_link.scroll_into_view_if_needed()
         sort_option_link.click()
         logger.debug("정렬 선택 완료")
+
+    def select_filter(self, filter_name: str, nth: int = 1) -> None:
+        """
+        미니 필터 또는 다이나믹 필터 영역에서 n번째 필터 버튼을 클릭한다.
+
+        Args:
+            filter_name: "미니 필터" 또는 "다이나믹 필터"
+            nth: 선택할 필터 버튼 순번 (1부터)
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: 알 수 없는 filter_name인 경우
+        """
+        idx = max(int(nth) - 1, 0)
+        logger.debug(f"필터 선택: {filter_name}, nth={nth} (index={idx})")
+        if filter_name == "미니 필터":
+            filter_button = self.page.locator(".list__mini-filter button.button__filter").nth(idx)
+        elif filter_name == "다이나믹 필터":
+            filter_button = self.page.locator(".box__dynamic-filter button.button__filter").nth(idx)
+        else:
+            raise ValueError(f"알 수 없는 필터 유형: {filter_name!r} (기대: 미니 필터, 다이나믹 필터)")
+
+        filter_button.wait_for(state="visible", timeout=10000)
+        filter_button.scroll_into_view_if_needed()
+        filter_button.click()

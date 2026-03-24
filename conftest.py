@@ -255,8 +255,8 @@ def create_login_state(pw):
     except Exception:
         pass
 
-    # 로그인 페이지 이동 및 입력
-    page.click("text=로그인")
+    # 마이지(마이 G) 링크 → 로그인 플로우 진입
+    page.locator("a.link.link__myg").click()
     page.fill("#typeMemberInputId", username)
     page.fill("#typeMemberInputPassword", password)
     page.click("#btn_memberLogin")
@@ -453,7 +453,7 @@ def _capture_screenshot(case_id_num, request=None, step_func_args=None):
             else:
                 screenshot_path = f"screenshots/{case_id_num}_{timestamp}.png"
             os.makedirs(os.path.dirname(screenshot_path), exist_ok=True)
-            page.screenshot(path=screenshot_path, timeout=2000)
+            page.screenshot(path=screenshot_path, timeout=PAGE_SCREENSHOT_TIMEOUT_MS)
             print(f"[TestRail] 스크린샷 저장 완료: {screenshot_path}")
             return screenshot_path
     except Exception as e:
@@ -463,7 +463,10 @@ def _capture_screenshot(case_id_num, request=None, step_func_args=None):
 
 
 # 프론트 실패 처리 헬퍼 함수는 utils.frontend_helpers에서 import
-from utils.frontend_helpers import capture_frontend_failure_screenshot
+from utils.frontend_helpers import (
+    PAGE_SCREENSHOT_TIMEOUT_MS,
+    capture_frontend_failure_screenshot,
+)
 
 
 def _collect_step_logs():
@@ -801,6 +804,14 @@ except json.JSONDecodeError as e:
 
 # TestRail 기록: testrail_report가 Y일 때만 Run 생성·결과 기록
 TESTRAIL_REPORT_ENABLED = (config.get("testrail_report") or "N").strip().upper() == "Y"
+# Run 이름: {datetime} → 실행 시각(YYYY-MM-DD HH:MM:SS)
+TESTRAIL_RUN_NAME = (
+    (config.get("testrail_run_name") or "GUT Automation test mweb {datetime}").strip()
+)
+# 세션 종료 시 TestRail Run close (testrail_report가 Y일 때만 의미 있음, Y/N)
+TESTRAIL_CLOSE_RUN_ON_FINISH = (
+    (config.get("testrail_close_run_on_finish") or "Y").strip().upper() == "Y"
+)
 
 if TESTRAIL_REPORT_ENABLED:
     try:
@@ -972,8 +983,9 @@ def pytest_sessionstart(session):
     
     print(f"[TestRail] 총 {len(all_case_ids)}개 케이스 수집 완료")
     
-    # 4. Run 생성
-    run_name = f"GUT Automation test mweb {datetime.now():%Y-%m-%d %H:%M:%S}"
+    # 4. Run 생성 (이름은 config.json의 testrail_run_name)
+    _dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    run_name = TESTRAIL_RUN_NAME.replace("{datetime}", _dt)
     payload = {
         "suite_id": TESTRAIL_SUITE_ID,
         "name": run_name,
@@ -1082,9 +1094,11 @@ def pytest_sessionfinish(session, exitstatus):
     전체 테스트 종료 후 Run 닫기
     """
     global testrail_run_id
-    if testrail_run_id:
+    if testrail_run_id and TESTRAIL_CLOSE_RUN_ON_FINISH:
         testrail_post(f"close_run/{testrail_run_id}", {})
         print(f"[TestRail] Run {testrail_run_id} 종료 완료")
+    elif testrail_run_id and not TESTRAIL_CLOSE_RUN_ON_FINISH:
+        print(f"[TestRail] testrail_close_run_on_finish=N — Run {testrail_run_id} 자동 종료 생략")
 
     screenshots_dir = "screenshots"
     if os.path.exists(screenshots_dir):

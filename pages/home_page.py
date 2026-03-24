@@ -1,10 +1,12 @@
 """
 G마켓 홈 페이지 객체
 """
-from pages.base_page import BasePage
-from playwright.sync_api import Page
-from utils.urls import base_url
+import re
 import logging
+
+from pages.base_page import BasePage
+from playwright.sync_api import Page, expect
+from utils.urls import base_url
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +74,20 @@ class HomePage(BasePage):
         self.page.locator("fieldset").get_by_role("button", name="검색", exact=True).click()
         logger.info("%s 종료", runtext)
     
-    def wait_for_search_results(self) -> None:
-        """검색 결과 페이지 로드 대기"""
+    def wait_for_search_results(self, keyword: str | None = None, timeout: int = 30000) -> None:
+        """검색 결과 페이지 로드 대기.
+
+        networkidle은 트래킹·폴링 등으로 M웹에서 거의 만족되지 않아 타임아웃이 잦음.
+        load 이벤트 후 SearchPage.verify_keyword_element_exists와 동일한 SRP UI를 기준으로 대기.
+        """
         logger.debug("검색 결과 로드 대기")
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("load", timeout=timeout)
+        if keyword:
+            locator = self.page.locator(".box__text-field button.form__input").first
+            locator.wait_for(state="visible", timeout=timeout)
+            expect(locator).to_contain_text(
+                re.compile(re.escape(keyword), re.IGNORECASE), timeout=timeout
+            )
     
     def click_login(self) -> None:
         """로그인 버튼 클릭"""

@@ -24,7 +24,7 @@ def when_user_searches_keyword(browser_session, keyword, bdd_context):
         home_page = HomePage(browser_session.page)
         home_page.close_popup()
         home_page.search_product(keyword)
-        home_page.wait_for_search_results()
+        home_page.wait_for_search_results(keyword=keyword)
         bdd_context.store['keyword'] = keyword
         logger.info(f"검색 완료: keyword={keyword}")
     except Exception as e:
@@ -160,6 +160,8 @@ def user_confirms_and_clicks_product_in_module(browser_session, module_title, nt
         bdd_context: BDD context (step 간 데이터 공유용)
     """
     try:
+        # 트래킹 스키마 로드 시 모듈명(n).json 매칭용 (tracking_validation_steps → load_module_config)
+        bdd_context.store['nth'] = int(nth)
         search_page = SearchPage(browser_session.page)
         
         # 모듈로 이동
@@ -238,6 +240,7 @@ def user_confirms_and_clicks_product_in_module(browser_session, module_title, nt
         record_frontend_failure(browser_session, bdd_context, str(e), "사용자가 모듈 내 상품을 확인하고 클릭한다")
         if 'module_title' not in bdd_context.store:
             bdd_context.store['module_title'] = module_title
+        bdd_context.store['nth'] = int(nth)
 
 @when(parsers.parse('사용자가 "{module_title}" 모듈 내 {nth:d}번째 상품을 확인하고 클릭한다 (type2)'))
 def user_confirms_and_clicks_product_in_module_type2(browser_session, module_title, nth, bdd_context):
@@ -251,6 +254,7 @@ def user_confirms_and_clicks_product_in_module_type2(browser_session, module_tit
         bdd_context: BDD context (step 간 데이터 공유용)
     """
     try:
+        bdd_context.store['nth'] = int(nth)
         search_page = SearchPage(browser_session.page)
         
         # 모듈로 이동
@@ -321,6 +325,7 @@ def user_confirms_and_clicks_product_in_module_type2(browser_session, module_tit
         record_frontend_failure(browser_session, bdd_context, str(e), "사용자가 모듈 내 상품을 확인하고 클릭한다 (type2)")
         if 'module_title' not in bdd_context.store:
             bdd_context.store['module_title'] = module_title
+        bdd_context.store['nth'] = int(nth)
 
 
 @when(parsers.parse('사용자가 카테고리 아이디 "{category_id}" 로 이동한다'))
@@ -484,3 +489,32 @@ def click_more_button(browser_session, bdd_context):
     except Exception as e:
         logger.error(f"더보기 버튼 클릭 실패: {e}", exc_info=True)
         record_frontend_failure(browser_session, bdd_context, f"더보기 버튼 클릭 실패: {str(e)}", "더보기 버튼을 클릭한다")
+
+@when(parsers.parse('검색 결과 페이지에서 "{sort_option}" 정렬을 선택한다'))
+def select_sort_option(browser_session, sort_option, bdd_context):
+    """
+    검색 결과 페이지에서 정렬을 선택한다
+    """
+    try:
+        search_page = SearchPage(browser_session.page)
+        search_page.select_sort_option(sort_option)
+    except Exception as e:
+        logger.error(f"정렬 선택 실패: {e}", exc_info=True)
+        record_frontend_failure(browser_session, bdd_context, f"정렬 선택 실패: {str(e)}", "검색 결과 페이지에서 정렬을 선택한다")
+
+@when(parsers.parse('사용자가 "{filter_name}" 필터 {nth:d}번째를 적용한다'))
+def select_filter(browser_session, filter_name, nth, bdd_context):
+    """
+    검색 결과 페이지에서 필터를 적용한다.
+    """
+    try:
+        search_page = SearchPage(browser_session.page)
+        search_page.select_filter(filter_name, nth)
+    except Exception as e:
+        logger.error(f"필터 적용 실패: {e}", exc_info=True)
+        record_frontend_failure(
+            browser_session,
+            bdd_context,
+            f"필터 적용 실패: {str(e)}",
+            "사용자가 필터를 적용한다",
+        )

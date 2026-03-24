@@ -7,6 +7,9 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# 페이지 부하·폰트 로딩 시 짧은 타임아웃으로 스크린샷이 자주 실패하므로 여유 있게 둠
+PAGE_SCREENSHOT_TIMEOUT_MS = 10_000
+
 
 def capture_frontend_failure_screenshot(browser_session, bdd_context, error_message=None, step_name=None):
     """
@@ -32,7 +35,7 @@ def capture_frontend_failure_screenshot(browser_session, bdd_context, error_mess
                 safe_step_name = step_name.replace(' ', '_').replace('/', '_').replace('\\', '_')[:50]  # 파일명에 사용 불가능한 문자 제거
                 screenshot_path = f"screenshots/frontend_fail_{safe_step_name}_{timestamp}.png"
                 os.makedirs(os.path.dirname(screenshot_path), exist_ok=True)
-                page.screenshot(path=screenshot_path, timeout=2000)
+                page.screenshot(path=screenshot_path, timeout=PAGE_SCREENSHOT_TIMEOUT_MS)
                 print(f"[TestRail] 프론트 실패 시점 스크린샷 저장: {screenshot_path}")
                 
                 # bdd_context에 스크린샷 경로 저장
