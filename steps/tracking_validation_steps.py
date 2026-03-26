@@ -698,17 +698,27 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None)
         all_logs = []
         all_logs.extend(tracker.get_pv_logs())
         
-        if module_spm:
+        if isinstance(module_spm, str) and module_spm:
             module_exposure_logs = tracker.get_module_exposure_logs_by_spm(module_spm)
             all_logs.extend(module_exposure_logs)
             logger.info(f"SPM '{module_spm}'로 필터링된 Module Exposure 로그: {len(module_exposure_logs)}개")
+        elif isinstance(module_spm, list):
+            module_exposure_logs = []
+            for spm in module_spm:
+                module_exposure_logs.extend(tracker.get_module_exposure_logs_by_spm(spm))
+            all_logs.extend(module_exposure_logs)
+            logger.info(f"SPM 목록 {module_spm}로 OR 필터링된 Module Exposure 로그: {len(module_exposure_logs)}개")
         else:
             all_logs.extend(tracker.get_logs('Module Exposure'))
             logger.warning(f"모듈 '{module_title}'의 SPM 값이 없어 전체 Module Exposure 로그를 사용합니다.")
         
         all_logs.extend(tracker.get_pdp_pv_logs_by_goodscode(goodscode))
-        if module_spm:
+        if isinstance(module_spm, str) and module_spm:
             product_exposure_logs = tracker.get_product_exposure_logs_by_goodscode(goodscode, module_spm)
+        elif isinstance(module_spm, list):
+            product_exposure_logs = []
+            for spm in module_spm:
+                product_exposure_logs.extend(tracker.get_product_exposure_logs_by_goodscode(goodscode, spm))
         else:
             product_exposure_logs = tracker.get_product_exposure_logs_by_goodscode(goodscode)
         all_logs.extend(product_exposure_logs)

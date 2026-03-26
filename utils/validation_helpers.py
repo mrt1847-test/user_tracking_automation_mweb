@@ -254,13 +254,24 @@ def get_event_logs(tracker: NetworkTracker, event_type: str, goodscode: str, mod
     elif event_type == 'PDP PV':
         logs = tracker.get_pdp_pv_logs_by_goodscode(goodscode)
     elif event_type == 'Module Exposure':
-        if module_spm:
+        if isinstance(module_spm, str) and module_spm:
             logs = tracker.get_module_exposure_logs_by_spm(module_spm)
+        elif isinstance(module_spm, list):
+            logs = []
+            for spm in module_spm:
+                logs.extend(tracker.get_module_exposure_logs_by_spm(spm))
+            logs = _dedupe_logs(logs)
         else:
             logs = tracker.get_logs('Module Exposure')
     elif event_type == 'Product Exposure':
-        if module_spm:
+        if isinstance(module_spm, str) and module_spm:
             logs = tracker.get_product_exposure_logs_by_goodscode(goodscode, module_spm)
+        elif isinstance(module_spm, list):
+            # spm 리스트는 OR 조건으로 수집
+            logs = []
+            for spm in module_spm:
+                logs.extend(tracker.get_product_exposure_logs_by_goodscode(goodscode, spm))
+            logs = _dedupe_logs(logs)
         else:
             logs = tracker.get_product_exposure_logs_by_goodscode(goodscode)
     elif event_type == 'Product Click':
@@ -285,7 +296,7 @@ def get_event_logs(tracker: NetworkTracker, event_type: str, goodscode: str, mod
     return logs
 
 
-def _find_spm_recursive(config_section: Dict[str, Any]) -> Optional[str]:
+def _find_spm_recursive(config_section: Any) -> Optional[Union[str, List[str]]]:
     """
     config 섹션에서 spm 값을 재귀적으로 찾기
     
@@ -293,7 +304,7 @@ def _find_spm_recursive(config_section: Dict[str, Any]) -> Optional[str]:
         config_section: 설정 섹션 딕셔너리
     
     Returns:
-        spm 값 또는 None
+        spm 값(문자열 또는 문자열 리스트) 또는 None
     """
     if isinstance(config_section, dict):
         # 직접 'spm' 키가 있는지 확인
@@ -301,15 +312,42 @@ def _find_spm_recursive(config_section: Dict[str, Any]) -> Optional[str]:
             spm_value = config_section['spm']
             if isinstance(spm_value, str) and spm_value:
                 return spm_value
+            if isinstance(spm_value, list):
+                valid_spm_list = [v for v in spm_value if isinstance(v, str) and v]
+                if valid_spm_list:
+                    return valid_spm_list
         
         # 재귀적으로 탐색
         for value in config_section.values():
-            if isinstance(value, dict):
+            if isinstance(value, (dict, list)):
                 result = _find_spm_recursive(value)
+                if result:
+                    return result
+    elif isinstance(config_section, list):
+        for item in config_section:
+            if isinstance(item, (dict, list)):
+                result = _find_spm_recursive(item)
                 if result:
                     return result
     
     return None
+
+
+def _dedupe_logs(logs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """로그를 직렬화 기준으로 중복 제거 (순서 유지)."""
+    unique_logs: List[Dict[str, Any]] = []
+    seen = set()
+    for log in logs:
+        try:
+            key = json.dumps(log, ensure_ascii=False, sort_keys=True, default=str)
+        except (TypeError, ValueError):
+            # 직렬화가 어려운 경우 메모리 식별자 fallback
+            key = str(id(log))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_logs.append(log)
+    return unique_logs
 
 
 def _process_config_section(
