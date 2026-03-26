@@ -44,6 +44,10 @@ def then_search_results_page_is_displayed(browser_session, bdd_context):
             raise ValueError("bdd_context에 keyword가 없습니다.")
         search_page = SearchPage(browser_session.page)
         search_page.verify_keyword_element_exists(keyword)
+        try:
+            search_page.close_popup()
+        except Exception as e:
+            pass
         logger.info(f"검색 결과 페이지 표시 확인 (data-montelena-keyword={keyword})")
     except Exception as e:
         logger.error(f"검색 결과 페이지 표시 확인 실패: {e}", exc_info=True)
