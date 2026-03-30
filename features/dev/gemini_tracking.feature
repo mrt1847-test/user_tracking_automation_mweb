@@ -18,8 +18,8 @@ Feature: G마켓 SRP 트래킹 로그 정합성 검증
 
     Examples:
       | keyword          | module_title      | tc_module_exposure | tc_product_exposure | tc_product_click | tc_atc_click   |
-      | 콜라            | 카탈로그 그룹형     | C1413652           | C1413653            | C1413654         | C1413655       |
-      | 밥솥            | 카탈로그 속성형     | C1413645           | C1413646            | C1413647         | C1413648       |
+      | 생수            | 카탈로그 그룹형     | C1413652           | C1413653            | C1413654         | C1413655       |
+      | 냉장고            | 카탈로그 속성형     | C1413645           | C1413646            | C1413647         | C1413648       |
       | 물티슈            | 카탈로그 일반형     | C1413606           | C1413607            | C1413608         | C1413609       |
 
   Scenario: 검색 결과 페이지에서 카탈로그 모듈별 더보기 상품 클릭 시 트래킹 로그 검증
@@ -40,8 +40,8 @@ Feature: G마켓 SRP 트래킹 로그 정합성 검증
 
     Examples:
       | keyword          | module_title      | tc_module_exposure | tc_product_exposure | tc_product_click | tc_atc_click   |
-      | 콜라            | 카탈로그 그룹형     | C1228846           | C1413656            | C1413657         | C1413658       |
-      | 밥솥            | 카탈로그 속성형     | C1228846           | C1413649            | C1413650         | C1413651       |
+      | 생수            | 카탈로그 그룹형     | C1228846           | C1413656            | C1413657         | C1413658       |
+      | 냉장고            | 카탈로그 속성형     | C1228846           | C1413649            | C1413650         | C1413651       |
       | 물티슈            | 카탈로그 일반형     | C1228846           | C1413642            | C1413643         | C1413644       |
 
 
@@ -67,7 +67,7 @@ Feature: G마켓 SRP 트래킹 로그 정합성 검증
       | keyword          | module_title      | tc_module_exposure | tc_product_exposure | tc_product_click | tc_atc_click   |
       | 물티슈            | 판매 인기순     | C1228806           | C1413736            | C1413753         | C1413754       |
       | 물티슈            | 상품평 많은순     | C1228806           | C1413755            | C1413756         | C1413757       |
-      | 물티슈            | 신규 상품순     | C1228902           | C1413758            | C1413759         | C1413760       |
+      | 샴푸            | 신규 상품순     | C1228902           | C1413758            | C1413759         | C1413760       |
 
   Scenario: 검색 결과 페이지에서 정렬후 필터적용시시 상품 클릭 시 트래킹 로그 검증
     Given G마켓 홈 페이지에 접속했음
@@ -89,6 +89,6 @@ Feature: G마켓 SRP 트래킹 로그 정합성 검증
       | keyword          | module_title   | n | tc_module_exposure | tc_product_exposure | tc_product_click | tc_atc_click   |
       | 물티슈            | 판매 인기순     | 2 | C1228806           | C1413761            | C1413762         | C1413763       |
       | 물티슈            | 상품평 많은순   | 2 | C1228846           | C1413764            | C1413765         | C1413766       |
-      | 물티슈            | 신규 상품순     | 2 | C1228902           | C1413767            | C1413768         | C1413769       |
+      | 샴푸            | 신규 상품순     | 2 | C1228902           | C1413767            | C1413768         | C1413769       |
 
      

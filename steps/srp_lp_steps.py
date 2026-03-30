@@ -45,7 +45,7 @@ def then_search_results_page_is_displayed(browser_session, bdd_context):
         search_page = SearchPage(browser_session.page)
         search_page.verify_keyword_element_exists(keyword)
         try:
-            search_page.close_popup()
+            search_page.close_popup(wait_seconds=2)
         except Exception as e:
             pass
         logger.info(f"검색 결과 페이지 표시 확인 (data-montelena-keyword={keyword})")
@@ -502,6 +502,10 @@ def select_sort_option(browser_session, sort_option, bdd_context):
     try:
         search_page = SearchPage(browser_session.page)
         search_page.select_sort_option(sort_option)
+        try:
+            search_page.close_popup(wait_seconds=2)
+        except Exception as e:
+            pass
     except Exception as e:
         logger.error(f"정렬 선택 실패: {e}", exc_info=True)
         record_frontend_failure(browser_session, bdd_context, f"정렬 선택 실패: {str(e)}", "검색 결과 페이지에서 정렬을 선택한다")

@@ -408,8 +408,8 @@ class SearchPage(BasePage):
             상품 Locator 객체
         """
         logger.debug("모듈 내 상품 요소 찾기")
-        nth_index = max(int(index), 0) * 2
-        return parent_locator.locator("div.box__itemcard  a").nth(nth_index)
+        nth_index = max(int(index), 0)
+        return parent_locator.locator("div.box__itemcard > a").nth(nth_index)
     
     def get_product_in_module_type2(self, parent_locator: Locator, index: int = 0) -> Locator:
         """

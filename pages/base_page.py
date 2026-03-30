@@ -692,11 +692,16 @@ class BasePage:
             # record_frontend_failure가 있다면 여기서 호출하면 좋습니다.
             raise AssertionError(error_msg)
 
-    def close_popup(self):
+    def close_popup(self, wait_seconds: float = 0):
         """
         팝업 닫기
+
+        Args:
+            wait_seconds: 팝업이 뜨기 전 대기 시간(초). 0이면 바로 닫기 시도.
         """
         logger.debug("팝업 닫기")
+        if wait_seconds and wait_seconds > 0:
+            time.sleep(wait_seconds)
         try:
             self.page.locator(".button__popup-close[aria-label='레이어 닫기']").click(force=True, timeout=2000)
         except:

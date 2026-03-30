@@ -15,7 +15,7 @@
     "ab_buckets": "502560_#sp-common-rank-l1#258776"
   },
   "product_exposure": {
-    "spm": "gmktm.searchlist.catalog.d0_tab0_item0",
+    "spm": ["gmktm.searchlist.catalog.d0_tab0_item0","gmktm.searchlist.catalog.d0_tab0_item5"],
     "spm-cnt": "gmktm.searchlist.0.0",
     "spm-url": "gmktm.home.searchpopup.dsearchbox",
     "spm-pre": "",
@@ -41,7 +41,7 @@
       "x_object_id": "<상품번호>",
       "x_object_type": "item",
       "x_sku_id": "0",
-      "pageIndex": "0",
+      "pageIndex": ["0","1"],
       "pagePos": ["0","5"],
       "pageSize": "5",
       "listno": ["0","5"],
@@ -71,7 +71,7 @@
     }
   },
   "product_click": {
-    "spm": "gmktm.searchlist.catalog.d0_tab0_item0",
+    "spm": ["gmktm.searchlist.catalog.d0_tab0_item0","gmktm.searchlist.catalog.d0_tab0_item5"],
     "spm-cnt": "gmktm.searchlist.0.0",
     "spm-url": "gmktm.home.searchpopup.dsearchbox",
     "spm-pre": "",
@@ -97,7 +97,7 @@
       "x_object_id": "<상품번호>",
       "x_object_type": "item",
       "x_sku_id": "0",
-      "pageIndex": "0",
+      "pageIndex": ["0","1"],
       "pagePos": ["0","5"],
       "pageSize": "5",
       "listno": ["0","5"],
@@ -127,7 +127,7 @@
     }
   },
   "product_atc_click": {
-    "spm": "gmktm.searchlist.catalog.d0_tab0_item0",
+    "spm": ["gmktm.searchlist.catalog.d0_tab0_item0","gmktm.searchlist.catalog.d0_tab0_item5"],
     "spm-cnt": "gmktm.searchlist.0.0",
     "spm-url": "gmktm.home.searchpopup.dsearchbox",
     "spm-pre": "",
@@ -152,7 +152,7 @@
       "x_object_id": "<상품번호>",
       "x_object_type": "item",
       "x_sku_id": "0",
-      "pageIndex": "0",
+      "pageIndex": ["0","1"],
       "pagePos": ["0","5"],
       "pageSize": "5",
       "listno": ["0","5"],
