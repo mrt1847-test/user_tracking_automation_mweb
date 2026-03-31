@@ -502,6 +502,7 @@ def select_sort_option(browser_session, sort_option, bdd_context):
     try:
         search_page = SearchPage(browser_session.page)
         search_page.select_sort_option(sort_option)
+        bdd_context['selected_sort_option'] = sort_option
         try:
             search_page.close_popup(wait_seconds=2)
         except Exception as e:
@@ -526,3 +527,171 @@ def select_filter(browser_session, filter_name, nth, bdd_context):
             f"필터 적용 실패: {str(e)}",
             "사용자가 필터를 적용한다",
         )
+
+
+@when(parsers.parse('검색 결과 페이지에서 "{sort_option}" 정렬을 적용한다'))
+def apply_sort_option(browser_session, sort_option, bdd_context):
+    """
+    검색 결과 페이지에서 정렬을 적용한다. (검증은 Then 스텝에서 수행)
+    """
+    select_sort_option(browser_session, sort_option, bdd_context)
+
+
+@then(parsers.re(r'상품평 수 내림차순 정렬이 정합성 검증을 통과해야 함 \(TC: (?P<tc_id>.*)\)'))
+def then_review_counts_descending_should_pass_validation(tc_id, browser_session, bdd_context):
+    """
+    목록 상품의 `.box__score-awards.sprite .text__num` 값이
+    위→아래로 내림차순(이전 상품 이하)인지 검증한다.
+    TestRail 기록을 위해 TC 번호를 context에 저장하고 validation_* 플래그를 사용한다.
+    """
+    if not tc_id or tc_id.strip() == '':
+        logger.info("TC 번호가 비어있어 상품평 수 내림차순 검증을 건너뜁니다.")
+        return
+
+    bdd_context['testrail_tc_id'] = tc_id
+    step_name = "상품평 수 내림차순 정렬 정합성 검증"
+    try:
+        search_page = SearchPage(browser_session.page)
+        try:
+            browser_session.page.wait_for_load_state("networkidle", timeout=15000)
+        except Exception as e:
+            logger.debug(f"networkidle 대기 생략/실패, load로 대체: {e}")
+            try:
+                browser_session.page.wait_for_load_state("load", timeout=15000)
+            except Exception as e2:
+                logger.warning(f"load 대기도 실패: {e2}")
+        time.sleep(1.0)
+
+        counts = search_page.collect_review_counts_for_search_result_items(max_items=100)
+        if len(counts) < 2:
+            raise ValueError(
+                f"비교할 상품이 부족합니다 (수집 {len(counts)}개). "
+                "정렬·로딩·선택자를 확인하세요."
+            )
+        violations = []
+        violation_indices = []
+        for idx in range(1, len(counts)):
+            prev_count, curr_count = counts[idx - 1], counts[idx]
+            if curr_count > prev_count:
+                violation_indices.append(idx)
+                violations.append(
+                    f"{idx + 1}번째 상품: {curr_count} > {idx}번째 상품: {prev_count}"
+                )
+
+        if violations:
+            # 실패 스크린샷이 위반 상품 근처에서 찍히도록 첫 번째 위반 상품으로 스크롤
+            try:
+                first_violation_idx = violation_indices[0]  # 0-based (현재 상품 위치)
+                target_num = browser_session.page.locator(".box__score-awards.sprite .text__num").nth(first_violation_idx)
+                target_num.scroll_into_view_if_needed(timeout=5000)
+                time.sleep(0.2)
+            except Exception as scroll_err:
+                logger.warning(f"위반 상품으로 스크롤 실패(계속 진행): {scroll_err}")
+
+            violation_details = "\n".join(violations)
+            raise ValueError(
+                "상품평 많은순 내림차순 위반이 발견되었습니다.\n"
+                f"총 위반 건수: {len(violations)}\n"
+                f"{violation_details}"
+            )
+        bdd_context['validation_failed'] = False
+        bdd_context['validation_passed_fields'] = {
+            'sort_option': bdd_context.get('selected_sort_option'),
+            'checked_item_count': len(counts),
+            'ordering': 'desc'
+        }
+        logger.info(
+            f"[TestRail TC: {tc_id}] 상품평 수 내림차순 검증 통과 ({len(counts)}개 상품)"
+        )
+    except Exception as e:
+        error_message = f"[TestRail TC: {tc_id}] {step_name} 실패: {str(e)}"
+        logger.error(error_message, exc_info=True)
+        bdd_context['validation_failed'] = True
+        bdd_context['validation_error_message'] = error_message
+
+
+@then(parsers.re(r'goodscode 오름차순 정렬이 정합성 검증을 통과해야 함 \(TC: (?P<tc_id>.*)\)'))
+def then_goodcodes_ascending_should_pass_validation(tc_id, browser_session, bdd_context):
+    """
+    목록 상품의 data-montelena-goodscode 값이
+    위→아래로 내림차순(이전 상품 이상)인지 검증한다.
+    실패 스크린샷이 위반 상품 근처에 찍히도록 먼저 스크롤한다.
+
+    Note:
+        엄격한 내림차순으로 검증한다.
+        'curr >= prev'일 때 위반으로 판단한다(이전 상품이 반드시 더 커야 함).
+    """
+    if not tc_id or tc_id.strip() == '':
+        logger.info("TC 번호가 비어있어 goodscode 오름차순 검증을 건너뜁니다.")
+        return
+
+    bdd_context['testrail_tc_id'] = tc_id
+    step_name = "goodscode 내림차순 정렬 정합성 검증"
+    try:
+        search_page = SearchPage(browser_session.page)
+        try:
+            browser_session.page.wait_for_load_state("networkidle", timeout=15000)
+        except Exception as e:
+            logger.debug(f"networkidle 대기 생략/실패, load로 대체: {e}")
+            try:
+                browser_session.page.wait_for_load_state("load", timeout=15000)
+            except Exception as e2:
+                logger.warning(f"load 대기도 실패: {e2}")
+        time.sleep(1.0)
+
+        goodcodes = search_page.collect_goodcodes_for_search_result_items(max_items=100)
+        if len(goodcodes) < 2:
+            raise ValueError(
+                f"비교할 상품이 부족합니다 (수집 {len(goodcodes)}개). "
+                "정렬·로딩·선택자를 확인하세요."
+            )
+
+        violations = []
+        violation_indices = []
+        for idx in range(1, len(goodcodes)):
+            prev_code, curr_code = goodcodes[idx - 1], goodcodes[idx]
+            if curr_code >= prev_code:
+                violation_indices.append(idx)  # 0-based: current item index
+                violations.append(
+                    f"{idx + 1}번째 상품: goodscode {curr_code} >= {idx}번째 상품: {prev_code}"
+                )
+
+        if violations:
+            # 실패 스크린샷이 위반 상품 근처에서 찍히도록 첫 번째 위반 상품으로 스크롤
+            try:
+                first_violation_idx = violation_indices[0]
+                primary_cards = browser_session.page.locator(
+                    "div.box__item-container>a[data-montelena-goodscode])"
+                )
+                if primary_cards.count() > 0:
+                    target = primary_cards.nth(first_violation_idx).locator(
+                        "a[data-montelena-goodscode]"
+                    ).first
+                else:
+                    anchors = browser_session.page.locator("a[data-montelena-goodscode]")
+                    target = anchors.nth(first_violation_idx)
+
+                target.scroll_into_view_if_needed(timeout=5000)
+                time.sleep(0.2)
+            except Exception as scroll_err:
+                logger.warning(f"위반 goodscode 상품으로 스크롤 실패(계속 진행): {scroll_err}")
+
+            violation_details = "\n".join(violations)
+            raise ValueError(
+                "goodscode 내림차순 정렬 위반이 발견되었습니다.\n"
+                f"총 위반 건수: {len(violations)}\n"
+                f"{violation_details}"
+            )
+
+        bdd_context['validation_failed'] = False
+        bdd_context['validation_passed_fields'] = {
+            'sort_option': bdd_context.get('selected_sort_option'),
+            'checked_item_count': len(goodcodes),
+            'ordering': 'desc'
+        }
+        logger.info(f"[TestRail TC: {tc_id}] goodscode 내림차순 검증 통과 ({len(goodcodes)}개 상품)")
+    except Exception as e:
+        error_message = f"[TestRail TC: {tc_id}] {step_name} 실패: {str(e)}"
+        logger.error(error_message, exc_info=True)
+        bdd_context['validation_failed'] = True
+        bdd_context['validation_error_message'] = error_message

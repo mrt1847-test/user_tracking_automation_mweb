@@ -5,7 +5,7 @@ import json
 from pages.base_page import BasePage
 from playwright.sync_api import Page, Locator, expect
 from utils.urls import item_base_url, search_url
-from typing import Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -679,3 +679,107 @@ class SearchPage(BasePage):
         filter_button.wait_for(state="visible", timeout=10000)
         filter_button.scroll_into_view_if_needed()
         filter_button.click()
+
+    def collect_review_counts_for_search_result_items(self, max_items: int = 100) -> List[int]:
+        """
+        검색 결과 영역의 상품 카드에서, 상품평 수(`.box__score-awards.sprite .text__num`)를
+        화면/문서 순서대로 수집한다.
+
+        Args:
+            max_items: 수집할 최대 카드 수(기본 100, 한 페이지 ~60개 전후 대응)
+
+        Returns:
+            상품평 수 정수 리스트 (앞에서부터 페이지 순서)
+
+        Raises:
+            ValueError: 카드가 없거나 특정 카드에서 숫자를 파싱할 수 없을 때
+        """
+        logger.debug(f"검색 결과 상품평 수 수집 시작 (max_items={max_items})")
+        # DOM 변형 대응:
+        # 1) 카드 컨테이너 기반 수집 시도
+        # 2) 실패 시 .box__score-awards.sprite .text__num 직접 수집으로 폴백
+        cards = self.page.locator("div.box__item-container:has(.box__score-awards.sprite)")
+        total_cards = cards.count()
+        counts: List[int] = []
+
+        if total_cards > 0:
+            n = min(total_cards, max_items)
+            for i in range(n):
+                num_el = cards.nth(i).locator(".box__score-awards.sprite .text__num").first
+                try:
+                    raw = num_el.inner_text().strip() if num_el.count() > 0 else ""
+                except Exception as e:
+                    raise ValueError(f"{i + 1}번째 상품: 상품평 수 텍스트를 읽을 수 없습니다: {e}") from e
+                digits = re.sub(r"[^\d]", "", raw)
+                if not digits:
+                    raise ValueError(f"{i + 1}번째 상품에서 상품평 수 숫자를 파싱할 수 없습니다 (원문={raw!r})")
+                counts.append(int(digits))
+        else:
+            logger.warning("box__item-container 기반 수집 실패, text__num 직접 수집으로 폴백")
+            nums = self.page.locator(".box__score-awards.sprite .text__num")
+            total_nums = nums.count()
+            n = min(total_nums, max_items)
+            if n == 0:
+                raise ValueError(
+                    "상품평 수 요소를 찾을 수 없습니다. "
+                    "(.box__score-awards.sprite .text__num)"
+                )
+            for i in range(n):
+                try:
+                    raw = nums.nth(i).inner_text().strip()
+                except Exception as e:
+                    raise ValueError(f"{i + 1}번째 상품: 상품평 수 텍스트를 읽을 수 없습니다: {e}") from e
+                digits = re.sub(r"[^\d]", "", raw)
+                if not digits:
+                    raise ValueError(f"{i + 1}번째 상품에서 상품평 수 숫자를 파싱할 수 없습니다 (원문={raw!r})")
+                counts.append(int(digits))
+        logger.info(f"검색 결과 상품평 수 수집 완료: {len(counts)}개")
+        return counts
+
+    def collect_goodcodes_for_search_result_items(self, max_items: int = 100) -> List[int]:
+        """
+        검색 결과 영역 상품 카드에서 data-montelena-goodscode 값을
+        화면/문서 순서대로 수집한다.
+
+        Args:
+            max_items: 수집할 최대 카드 수(기본 100)
+
+        Returns:
+            상품코드 정수 리스트 (앞에서부터 페이지 순서)
+
+        Raises:
+            ValueError: 카드/상품코드 요소가 없거나 파싱 실패 시
+        """
+        logger.debug(f"검색 결과 goodscode 수집 시작 (max_items={max_items})")
+
+        cards = self.page.locator("div.box__itemcard")
+        total_cards = cards.count()
+        goodcodes: List[int] = []
+
+        if total_cards > 0:
+            n = min(total_cards, max_items)
+            for i in range(n):
+                a_el = cards.nth(i).locator("a[data-montelena-goodscode]").first
+                if a_el.count() == 0:
+                    raise ValueError(f"{i + 1}번째 상품에서 goodscode 링크를 찾을 수 없습니다.")
+                raw = a_el.get_attribute("data-montelena-goodscode") or ""
+                digits = re.sub(r"[^\d]", "", raw)
+                if not digits:
+                    raise ValueError(f"{i + 1}번째 상품에서 goodscode 숫자를 파싱할 수 없습니다 (원문={raw!r})")
+                goodcodes.append(int(digits))
+        else:
+            logger.warning("box__item-container 기반 goodscode 수집 실패, a[data-montelena-goodscode] 직접 수집으로 폴백")
+            anchors = self.page.locator("a[data-montelena-goodscode]")
+            total = anchors.count()
+            n = min(total, max_items)
+            if n == 0:
+                raise ValueError("goodscode 요소를 찾을 수 없습니다. (a[data-montelena-goodscode])")
+            for i in range(n):
+                raw = anchors.nth(i).get_attribute("data-montelena-goodscode") or ""
+                digits = re.sub(r"[^\d]", "", raw)
+                if not digits:
+                    raise ValueError(f"{i + 1}번째 상품에서 goodscode 숫자를 파싱할 수 없습니다 (원문={raw!r})")
+                goodcodes.append(int(digits))
+
+        logger.info(f"검색 결과 goodscode 수집 완료: {len(goodcodes)}개")
+        return goodcodes
