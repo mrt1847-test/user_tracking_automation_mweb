@@ -657,22 +657,38 @@ def then_goodcodes_ascending_should_pass_validation(tc_id, browser_session, bdd_
                 )
 
         if violations:
-            # 실패 스크린샷이 위반 상품 근처에서 찍히도록 첫 번째 위반 상품으로 스크롤
+            # 실패 스크린샷: 위반 행의 goodscode 값으로 정확히 매칭 (카드당 a 태그 2개 이슈 회피)
             try:
-                first_violation_idx = violation_indices[0]
-                primary_cards = browser_session.page.locator(
-                    "div.box__item-container>a[data-montelena-goodscode])"
-                )
-                if primary_cards.count() > 0:
-                    target = primary_cards.nth(first_violation_idx).locator(
-                        "a[data-montelena-goodscode]"
+                violating_idx = violation_indices[0]
+                code_str = str(goodcodes[violating_idx])
+                page = browser_session.page
+                cards = page.locator("div.box__itemcard")
+                target = None
+                if cards.count() > violating_idx:
+                    card = cards.nth(violating_idx)
+                    scoped = card.locator(
+                        f'a[data-montelena-goodscode="{code_str}"]'
+                    )
+                    if scoped.count() == 0:
+                        raw_attr = (
+                            card.locator("a[data-montelena-goodscode]")
+                            .first.get_attribute("data-montelena-goodscode")
+                            or ""
+                        ).strip()
+                        if raw_attr:
+                            scoped = card.locator(
+                                f'a[data-montelena-goodscode="{raw_attr}"]'
+                            )
+                    if scoped.count() > 0:
+                        target = scoped.first
+                    else:
+                        target = card.locator("a[data-montelena-goodscode]").first
+                if target is None:
+                    target = page.locator(
+                        f'a[data-montelena-goodscode="{code_str}"]'
                     ).first
-                else:
-                    anchors = browser_session.page.locator("a[data-montelena-goodscode]")
-                    target = anchors.nth(first_violation_idx)
-
                 target.scroll_into_view_if_needed(timeout=5000)
-                time.sleep(0.2)
+                time.sleep(1.0)
             except Exception as scroll_err:
                 logger.warning(f"위반 goodscode 상품으로 스크롤 실패(계속 진행): {scroll_err}")
 

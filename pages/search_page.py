@@ -759,10 +759,10 @@ class SearchPage(BasePage):
         if total_cards > 0:
             n = min(total_cards, max_items)
             for i in range(n):
-                a_el = cards.nth(i).locator("a[data-montelena-goodscode]").first
-                if a_el.count() == 0:
+                first_a = cards.nth(i).locator("a[data-montelena-goodscode]").first
+                if first_a.count() == 0:
                     raise ValueError(f"{i + 1}번째 상품에서 goodscode 링크를 찾을 수 없습니다.")
-                raw = a_el.get_attribute("data-montelena-goodscode") or ""
+                raw = first_a.get_attribute("data-montelena-goodscode") or ""
                 digits = re.sub(r"[^\d]", "", raw)
                 if not digits:
                     raise ValueError(f"{i + 1}번째 상품에서 goodscode 숫자를 파싱할 수 없습니다 (원문={raw!r})")
