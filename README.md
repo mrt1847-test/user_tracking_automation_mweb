@@ -58,9 +58,7 @@ user_tracking_automation_mweb/
 │   ├── HOME/                         # 홈 모듈
 │   ├── CART/                         # 장바구니 영역
 │   ├── MY/                           # MY 영역
-│   ├── ORDER/                        # 주문완료 영역
-│   ├── _common_fields.json           # 공통 필드 정의
-│   └── _common_fields_by_event.json  # 이벤트 타입별 공통 필드
+│   └── ORDER/                        # 주문완료 영역
 ├── features/                         # BDD feature 파일 (환경별 분리)
 │   ├── dev/                          # 개발 환경 시나리오
 │   │   └── pdpjfy_tracking.feature
@@ -112,7 +110,6 @@ user_tracking_automation_mweb/
 ├── utils/                            # 트래킹/검증/연동 유틸
 │   ├── NetworkTracker.py             # 네트워크 로그 수집·분류
 │   ├── validation_helpers.py         # 정합성 검증
-│   ├── common_fields.py              # 공통 필드 로드
 │   ├── urls.py                       # 환경별 URL (config.json의 environment 연동)
 │   ├── credentials.py               # 로그인 계정
 │   ├── frontend_helpers.py
@@ -120,10 +117,7 @@ user_tracking_automation_mweb/
 ├── scripts/                          # 데이터 변환/검증 보조 스크립트
 │   ├── json_to_sheets.py             # JSON → Google Sheets
 │   ├── sheets_to_json.py             # Google Sheets → tracking_schemas JSON
-│   ├── analyze_common_fields.py       # 공통 필드 추출
-│   ├── migrate_to_common_fields.py   # 스키마 마이그레이션
-│   ├── compare_config_tracking.py
-│   └── test_common_fields.py
+│   └── compare_config_tracking.py
 ├── json/                             # 테스트 실행 시 생성되는 트래킹 로그 저장 (선택)
 ├── conftest.py                       # fixture, 브라우저 세션, TestRail 훅
 ├── pytest.ini                        # pytest 실행 설정

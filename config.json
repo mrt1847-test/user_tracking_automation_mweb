@@ -1,7 +1,7 @@
 {
     "driver": "Chrome",
     "match_rate": 0.88,
-    "testrail_report": "Y",
+    "testrail_report": "N",
     "testrail_run_name": "User Tracking Aoutomation Test-mweb {datetime}",
     "testrail_close_run_on_finish": "N",
     "milestone_id": "1645",

@@ -6,7 +6,7 @@ import json
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 
 # 프로젝트 루트를 sys.path에 추가
 project_root = Path(__file__).parent.parent
@@ -16,13 +16,11 @@ from utils.google_sheets_sync import (
     GoogleSheetsSync,
     flatten_json,
     group_by_event_type,
-    TRACKING_TYPE_TO_CONFIG_KEY
+    TRACKING_TYPE_TO_CONFIG_KEY,
 )
-from utils.common_fields import (
-    load_common_fields_by_event,
-    get_common_fields_for_event_type,
-    normalize_path_for_common,
-    common_paths_normalized,
+from utils.schema_template_merge import (
+    default_schema_template_path,
+    filter_flat_rows_to_template,
 )
 
 
@@ -143,6 +141,21 @@ def replace_value_with_placeholder(field_name: str, value: Any) -> Any:
     return value
 
 
+def _known_schema_root_keys() -> set:
+    """tracking_schemas/*.json 최상위 섹션 키 (google_sheets_sync 매핑 기준)."""
+    return set(TRACKING_TYPE_TO_CONFIG_KEY.values())
+
+
+def is_tracking_schema_document(data: Any) -> bool:
+    """
+    tracking_all 배열이 아니라, module_exposure 등 섹션 객체 하나인 JSON인지 판별.
+    """
+    if not isinstance(data, dict) or not data:
+        return False
+    known = _known_schema_root_keys()
+    return bool(known.intersection(data.keys()))
+
+
 def load_tracking_json(file_path: str) -> List[Dict[str, Any]]:
     """
     tracking_all JSON 파일 로드
@@ -239,15 +252,74 @@ def process_event_type_payload(event_data: Dict[str, Any], event_type: str) -> D
         return {'payload': payload} if payload else {}
 
 
+def _flatten_module_fields_for_sheet(
+    config_data: Any,
+    template_section: Any = None,
+) -> List[Dict[str, str]]:
+    """
+    이벤트 한 덩어리를 시트용 평면 행으로 변환.
+    template_section이 있으면 기준 템플릿에 있는 path만 남기고(tracking_all 잡음 제거),
+    placeholder 규칙을 적용한다.
+    """
+    flattened = flatten_json(config_data, exclude_keys=["timestamp", "method", "url"])
+    if not flattened:
+        return []
+    if isinstance(template_section, dict):
+        flattened = filter_flat_rows_to_template(flattened, template_section)
+    if not flattened:
+        return []
+    if EXCLUDE_FIELDS:
+        flattened = [item for item in flattened if item.get("field") not in EXCLUDE_FIELDS]
+    for item in flattened:
+        if "field" in item and "value" in item:
+            item["value"] = replace_value_with_placeholder(item["field"], item["value"])
+    return flattened
+
+
+def _build_event_type_rows_from_schema(
+    schema_obj: Dict[str, Any],
+    event_type_order: List[str],
+    excluded_event_types: List[str],
+    template_obj: Any = None,
+) -> List[Tuple[str, List[Dict[str, str]]]]:
+    """
+    tracking_schemas 형 JSON(상품평 많은순.json 등) → (이벤트 타입, 평면 필드) 목록.
+    섹션은 이미 최종 형태이므로 process_event_type_payload 를 거치지 않는다.
+    """
+    rows_out: List[Tuple[str, List[Dict[str, str]]]] = []
+    for event_type in event_type_order:
+        if event_type in excluded_event_types:
+            print(f"[{event_type}] 등록에서 제외됨 (스키마 모드)")
+            continue
+        config_key = TRACKING_TYPE_TO_CONFIG_KEY.get(event_type)
+        if not config_key or config_key not in schema_obj:
+            continue
+        section = schema_obj[config_key]
+        if not isinstance(section, dict):
+            continue
+        tmpl_sec = None
+        if isinstance(template_obj, dict):
+            tmpl_sec = template_obj.get(config_key)
+        flattened = _flatten_module_fields_for_sheet(section, tmpl_sec)
+        if not flattened:
+            continue
+        rows_out.append((event_type, flattened))
+        print(f"[{event_type}] {len(flattened)}개 고유 필드 평면화 완료 (스키마 JSON)")
+    return rows_out
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description='tracking_all JSON 파일을 구글 시트로 변환하여 기본 틀 생성'
+        description=(
+            "JSON을 구글 시트로 반영. "
+            "tracking_all 배열 또는 tracking_schemas 형 단일 객체(상품평 많은순.json 등) 지원."
+        )
     )
     parser.add_argument(
         '--input',
         type=str,
         required=True,
-        help='입력 tracking_all JSON 파일 경로'
+        help='입력 JSON (tracking_all 배열 또는 module_exposure 등이 있는 스키마 객체)',
     )
     parser.add_argument(
         '--module',
@@ -261,6 +333,21 @@ def main():
         required=True,
         help='영역명 (SRP, PDP, HOME, CART 등)'
     )
+    parser.add_argument(
+        '--template',
+        type=str,
+        default=None,
+        help=(
+            '기준 스키마 JSON (기본: tracking_schemas/schema_template.json). '
+            '지정 시 해당 템플릿에 정의된 path만 시트로 옮김. '
+            '--no-template-filter 로 전체 path 유지.'
+        ),
+    )
+    parser.add_argument(
+        '--no-template-filter',
+        action='store_true',
+        help='기준 템플릿으로 path 필터링하지 않고 기존처럼 전체 평면 필드를 시트에 씀.',
+    )
     args = parser.parse_args()
     
     # config.json에서 설정 로드
@@ -272,14 +359,35 @@ def main():
         raise RuntimeError("config.json에 'spreadsheet_id'가 설정되어 있지 않습니다.")
     CREDENTIALS_PATH = str(project_root / 'python-link-test-380006-2868d392d217.json')
     
-    # JSON 파일 로드
+    template_obj = None
+    if not args.no_template_filter:
+        tmpl_path = Path(args.template) if args.template else default_schema_template_path(project_root)
+        if tmpl_path.is_file():
+            with open(tmpl_path, encoding="utf-8") as f:
+                template_obj = json.load(f)
+            print(f"기준 템플릿 로드 (path 필터): {tmpl_path}")
+        else:
+            print(f"경고: 기준 템플릿 없음 ({tmpl_path}) — path 필터 없이 전체 필드를 시트에 씁니다.")
+
+    # JSON 파일 로드 (스키마 객체 vs tracking_all 배열 자동 판별)
     print(f"JSON 파일 로드 중: {args.input}")
-    tracking_data = load_tracking_json(args.input)
-    print(f"총 {len(tracking_data)}개의 이벤트 로드됨")
-    
-    # 이벤트 타입별로 그룹화
-    grouped = group_by_event_type(tracking_data)
-    print(f"이벤트 타입: {list(grouped.keys())}")
+    with open(args.input, "r", encoding="utf-8") as f:
+        raw_data = json.load(f)
+    use_schema = is_tracking_schema_document(raw_data)
+    if use_schema:
+        schema_obj = raw_data
+        print("입력 형식: tracking_schemas 스타일 객체 (섹션 키 고정, 값만 시트로)")
+        grouped = None
+    else:
+        if not isinstance(raw_data, list):
+            raise ValueError(
+                "JSON이 배열도 스키마 객체도 아닙니다. "
+                "tracking_all 배열 또는 module_exposure 등이 있는 스키마 파일을 사용하세요."
+            )
+        tracking_data = raw_data
+        print(f"총 {len(tracking_data)}개의 이벤트 로드됨 (tracking_all)")
+        grouped = group_by_event_type(tracking_data)
+        print(f"이벤트 타입: {list(grouped.keys())}")
     
     # 구글 시트 연동 객체 생성
     print(f"구글 시트 연결 중... (Spreadsheet ID: {SPREADSHEET_ID})")
@@ -300,11 +408,6 @@ def main():
         print("⚠️ 표(Native Table) 생성 실패/건너뜀. 1행 헤더만 쓰고 데이터는 A2:E에 기록합니다. (위 traceback 확인)")
         sync.ensure_area_header(worksheet)
     
-    # 공통 필드 로드
-    print("공통 필드 로드 중...")
-    common_fields_data = load_common_fields_by_event()
-    print(f"공통 필드 로드 완료: {len(common_fields_data)}개 이벤트 타입")
-    
     # 이벤트 타입 순서 (config JSON 구조에 맞춤)
     event_type_order = [
         'Module Exposure',
@@ -324,35 +427,33 @@ def main():
     # 등록에서 제외할 이벤트 타입 (관련 로직은 유지)
     EXCLUDED_EVENT_TYPES = ['PDP PV', 'PV']
     
-    event_type_rows = []
-    for event_type in event_type_order:
-        if event_type not in grouped:
-            continue
-        # 등록에서 제외할 이벤트 타입은 건너뛰기
-        if event_type in EXCLUDED_EVENT_TYPES:
-            print(f"[{event_type}] 등록에서 제외됨 (관련 로직은 유지)")
-            continue
-        events = grouped[event_type]
-        if not events:
-            continue
-        event_data = events[0]
-        config_data = process_event_type_payload(event_data, event_type)
-        flattened = flatten_json(config_data, exclude_keys=['timestamp', 'method', 'url'])
-        if not flattened:
-            continue
-        
-        # 공통 필드 제외 (모듈별 고유 필드만 남김, 배열 인덱스 무시하고 비교)
-        common_fields = get_common_fields_for_event_type(event_type, common_fields_data)
-        common_paths_norm = common_paths_normalized(common_fields)
-        flattened = [item for item in flattened if normalize_path_for_common(item.get('path')) not in common_paths_norm]
-        
-        if EXCLUDE_FIELDS:
-            flattened = [item for item in flattened if item.get('field') not in EXCLUDE_FIELDS]
-        for item in flattened:
-            if 'field' in item and 'value' in item:
-                item['value'] = replace_value_with_placeholder(item['field'], item['value'])
-        event_type_rows.append((event_type, flattened))
-        print(f"[{event_type}] {len(flattened)}개 고유 필드 평면화 완료 (공통 필드 제외)")
+    if use_schema:
+        event_type_rows = _build_event_type_rows_from_schema(
+            schema_obj,
+            event_type_order,
+            EXCLUDED_EVENT_TYPES,
+            template_obj,
+        )
+    else:
+        event_type_rows = []
+        for event_type in event_type_order:
+            if grouped is None or event_type not in grouped:
+                continue
+            if event_type in EXCLUDED_EVENT_TYPES:
+                print(f"[{event_type}] 등록에서 제외됨 (관련 로직은 유지)")
+                continue
+            events = grouped[event_type]
+            if not events:
+                continue
+            event_data = events[0]
+            config_data = process_event_type_payload(event_data, event_type)
+            config_key = TRACKING_TYPE_TO_CONFIG_KEY[event_type]
+            tmpl_sec = template_obj.get(config_key) if isinstance(template_obj, dict) else None
+            flattened = _flatten_module_fields_for_sheet(config_data, tmpl_sec)
+            if not flattened:
+                continue
+            event_type_rows.append((event_type, flattened))
+            print(f"[{event_type}] {len(flattened)}개 고유 필드 평면화 완료")
     
     # 데이터만 A2:E에 기록 (1행은 표 헤더, 건드리지 않음)
     ncols = sync.AREA_NCOLS
@@ -367,12 +468,6 @@ def main():
     
     last_row = 1 + len(to_write)
     sync.format_area_data_as_text(worksheet, last_row)
-    
-    # 공통 필드 시트에 기록 (이미 있으면 업데이트)
-    if common_fields_data:
-        print("\n공통 필드 시트에 기록 중...")
-        sync.write_common_fields_by_event(common_fields_data)
-        print("공통 필드 시트 기록 완료")
     
     print(f"\n✅ 완료! 시트 '{worksheet_name}'에 모듈 '{args.module}' Upsert 완료")
     print(f"구글 시트 URL: https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}")

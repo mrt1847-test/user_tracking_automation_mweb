@@ -377,6 +377,136 @@ class BasePage:
             logger.warning(f"scroll_into_view_if_needed 실패, 강제 스크롤 시도: {e}")
             product_locator.evaluate("el => el.scrollIntoView({behavior: 'smooth', block: 'end'})")            
 
+    _SCROLL_LAZY_CONTENT_JS = """
+    ({ step, horizontal }) => {
+        const apply = (el) => {
+            if (!el) return;
+            if (horizontal) el.scrollLeft += step;
+            else el.scrollTop += step;
+        };
+        const se = document.scrollingElement || document.documentElement;
+        const candidates = [];
+        if (se) candidates.push(se);
+        const stack = [document.body];
+        while (stack.length) {
+            const el = stack.pop();
+            if (!el) continue;
+            for (const c of el.children) stack.push(c);
+            const st = getComputedStyle(el);
+            const ox = st.overflowX;
+            const oy = st.overflowY;
+            const canY = !horizontal && (oy === 'auto' || oy === 'scroll' || oy === 'overlay')
+                && el.scrollHeight > el.clientHeight + 1;
+            const canX = horizontal && (ox === 'auto' || ox === 'scroll' || ox === 'overlay')
+                && el.scrollWidth > el.clientWidth + 1;
+            if (canY || canX) candidates.push(el);
+        }
+        let pick = null;
+        let maxRemain = -1;
+        for (const el of candidates) {
+            const remain = horizontal
+                ? el.scrollWidth - el.clientWidth
+                : el.scrollHeight - el.clientHeight;
+            if (remain > maxRemain) {
+                maxRemain = remain;
+                pick = el;
+            }
+        }
+        if (pick) apply(pick);
+    }
+    """
+
+    def _scroll_for_lazy_content(
+        self,
+        scroll_step_px: int,
+        horizontal: bool,
+        container_selector: Optional[str],
+    ) -> None:
+        """지연 로딩 콘텐츠를 위해 스크롤한다. window만 쓰지 않고 실제 overflow 영역도 움직인다."""
+        if container_selector:
+            self.page.evaluate(
+                """
+                ({ sel, step, horizontal }) => {
+                    const el = document.querySelector(sel);
+                    if (!el) return;
+                    if (horizontal) el.scrollLeft += step;
+                    else el.scrollTop += step;
+                }
+                """,
+                {"sel": container_selector, "step": scroll_step_px, "horizontal": horizontal},
+            )
+            return
+        self.page.evaluate(
+            self._SCROLL_LAZY_CONTENT_JS,
+            {"step": scroll_step_px, "horizontal": horizontal},
+        )
+
+    def scroll_until_selector_appears(
+        self,
+        selector: str,
+        target_index: int = 0,
+        timeout_ms: int = 7000,
+        scroll_step_px: int = 600,
+        pause_ms: int = 150,
+        container_selector: Optional[str] = None,
+        horizontal: bool = False,
+    ) -> Locator:
+        """
+        요소가 DOM에 등장할 때까지 짧은 간격으로 스크롤을 반복한다.
+
+        무한 스크롤/지연 렌더링 페이지에서 "처음엔 DOM에 없다가 스크롤 시 생성"되는
+        요소를 기다릴 때 사용한다.
+
+        Args:
+            selector: 등장 여부를 확인할 CSS/XPath 선택자
+            target_index: selector 매칭 결과 중 목표 인덱스(0-based). 기본 0(첫 번째)
+            timeout_ms: 최대 대기 시간(ms). 기본 7000
+            scroll_step_px: 1회 스크롤 거리(px)
+            pause_ms: 스크롤 후 대기 시간(ms)
+            container_selector: 스크롤 컨테이너 선택자(None이면 문서 + 가장 큰 overflow 영역 + 휠 보조)
+            horizontal: True면 가로 스크롤, False면 세로 스크롤
+
+        Returns:
+            등장한 요소의 Locator(first)
+
+        Raises:
+            TimeoutError: timeout 내 요소가 DOM에 등장하지 않은 경우
+        """
+        if target_index < 0:
+            raise ValueError("target_index는 0 이상의 정수여야 합니다.")
+
+        deadline = time.time() + (timeout_ms / 1000.0)
+        candidates = self.page.locator(selector)
+        target = candidates.nth(target_index)
+        axis = "x" if horizontal else "y"
+        logger.debug(
+            "요소 등장 대기 스크롤 시작: selector=%s, target_index=%s, timeout_ms=%s, step=%spx, axis=%s, container=%s",
+            selector, target_index, timeout_ms, scroll_step_px, axis, container_selector
+        )
+
+        while time.time() < deadline:
+            n = candidates.count()
+            if n > target_index:
+                logger.debug("요소 DOM 등장 확인: %s (count=%s, need_index=%s)", selector, n, target_index)
+                return target
+            if n > 0:
+                logger.debug(
+                    "아직 매칭 부족: selector=%s, count=%s, target_index=%s (동일 data-spm가 페이지에 더 필요할 수 있음)",
+                    selector,
+                    n,
+                    target_index,
+                )
+
+            self._scroll_for_lazy_content(scroll_step_px, horizontal, container_selector)
+            time.sleep(pause_ms / 1000.0)
+
+        n_final = candidates.count()
+        raise TimeoutError(
+            f"요소가 timeout 내 DOM에 등장하지 않았습니다: selector={selector!r}, "
+            f"target_index={target_index}, timeout_ms={timeout_ms}, "
+            f"step={scroll_step_px}, axis={axis}, last_count={n_final}"
+        )
+
     def get_product_code(self, product_locator: Locator) -> Optional[str]:
         """
         상품 코드 가져오기

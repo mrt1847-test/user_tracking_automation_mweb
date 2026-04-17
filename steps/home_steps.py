@@ -212,3 +212,136 @@ def click_recently_viewed_product(browser_session, bdd_context):
         bdd_context.store["module_title"] = "최근본 상품"
         if "goodscode" in locals() and goodscode:
             bdd_context.store["goodscode"] = goodscode
+
+@given(parsers.parse('섹션에 "{n:d}"번째 "{module_title}" 모듈이 있다'))
+def section_module_exists(browser_session, n, module_title, bdd_context):
+    """
+    섹션에 n번째 module_title 모듈이 있는지 확인한다.
+    (Examples의 n은 1-based — find_module_by_spmc 두 번째 인자는 0-based 인덱스)
+    """
+    try:
+        home_page = HomePage(browser_session.page)
+        home_page.find_module_by_spmc(module_title, max(int(n) - 1, 0))
+        logger.info('섹션에 "%s"번째 "%s" 모듈이 있는지 확인됨', n, module_title)
+    except Exception as e:
+        logger.error('섹션에 "%s"번째 "%s" 모듈이 있는지 확인 실패: %s', n, module_title, e, exc_info=True)
+        record_frontend_failure(
+            browser_session,
+            bdd_context,
+            f'섹션에 "{n}"번째 "{module_title}" 모듈이 있는지 확인 실패: {e}',
+            '섹션에 "<n>"번째 "<module_title>" 모듈이 있다',
+        )
+
+
+@when(parsers.parse('사용자가 "{section_name}" 섹션으로 이동한다'))
+def navigate_to_section(browser_session, section_name, bdd_context):
+    """
+    사용자가 section_name 섹션으로 이동한다.
+    """
+    try:
+        home_page = HomePage(browser_session.page)
+        home_page.close_popup()
+        home_page.click_home_section_tab(section_name)
+        logger.info('사용자가 "%s" 섹션으로 이동했습니다.', section_name)
+    except Exception as e:
+        logger.error('사용자가 "%s" 섹션으로 이동 실패: %s', section_name, e, exc_info=True)
+        record_frontend_failure(
+            browser_session,
+            bdd_context,
+            f'사용자가 "{section_name}" 섹션으로 이동 실패: {e}',
+            '사용자가 "<section_name>" 섹션으로 이동한다',
+        )
+
+@then(parsers.parse('"{section_name}" 섹션으로 이동했다'))
+def section_is_navigated(browser_session, section_name, bdd_context):
+    """
+    "{section_name}" 섹션으로 이동했는지 확인한다.
+    """
+    try:
+        home_page = HomePage(browser_session.page)
+        home_page.expect_home_section_tab_active(section_name)
+        logger.info('"%s" 섹션으로 이동했습니다.', section_name)
+    except Exception as e:
+        logger.error('"%s" 섹션으로 이동 실패: %s', section_name, e, exc_info=True)
+        record_frontend_failure(
+            browser_session,
+            bdd_context,
+            f'"{section_name}" 섹션으로 이동 실패: {e}',
+            '"<section_name>" 섹션으로 이동한다',
+        )
+
+
+@when(parsers.parse('홈에서 사용자가 "{n:d}"번째 "{module_title}" 모듈 내 {nth:d}번째 상품을 확인하고 클릭한다'))
+def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, module_title, nth, bdd_context):
+    """
+    홈 섹션 모듈 내 상품 노출 확인 후 클릭.
+    스텝 문구는 `홈에서`로 시작해 `steps.srp_lp_steps`의
+    `사용자가 "{module_title}" 모듈 내 …` 와 겹치지 않게 한다 (같은 문장이면 SRP 쪽이 나중 로드되어 덮어씀).
+    모듈은 `data-spm`(SPMC)로 `find_module_by_spmc`에 찾는다.
+
+    실패 시에도 다음 스텝으로 진행
+
+    Args:
+        browser_session: BrowserSession 객체 (page 참조 관리)
+        n: 모듈 순번(1-based)
+        module_title: 모듈 SPMC (`data-spm` 속성값)
+        bdd_context: BDD context (step 간 데이터 공유용)
+    """
+    try:
+        # 트래킹 스키마 로드 시 모듈명(n).json 매칭용
+        bdd_context.store["module_title"] = module_title
+        bdd_context.store["module_order"] = int(n)
+        bdd_context.store['nth'] = int(nth)
+        home_page = HomePage(browser_session.page)
+
+        # 모듈 찾기 (n은 1-based 입력이므로 0-based 인덱스로 변환)
+        module = home_page.find_module_by_spmc(module_title, max(int(n) - 1, 0))
+
+        # 모듈 내 상품 찾기
+        nth_idx = max(int(nth) - 1, 0)
+        products = module.locator('a[data-montelena-goodscode][href*="product"]')
+        if products.count() <= nth_idx:
+            parent = home_page.get_module_parent(module, 3)
+            products = parent.locator('a[data-montelena-goodscode][href*="product"]')
+
+        if products.count() <= nth_idx:
+            raise AssertionError(
+                f'모듈 "{module_title}"의 {nth}번째 상품을 찾을 수 없습니다 '
+                f"(요청 index={nth_idx}, 발견 count={products.count()})"
+            )
+
+        product = products.nth(nth_idx)
+        home_page.scroll_product_into_view(product)
+        product.wait_for(state="visible", timeout=10000)
+
+        # 상품 코드 가져오기
+        goodscode = home_page.get_product_code(product)
+        if not goodscode:
+            raise AssertionError("상품 goodscode를 찾을 수 없습니다.")
+
+        # 홈 영역에서는 광고 여부를 기본값 N으로 저장
+        bdd_context.store["goodscode"] = goodscode
+        bdd_context.store["is_ad"] = "N"
+
+        # 상품 클릭 (모바일 웹 동작을 위해 tap 우선)
+        product.tap(timeout=5000)
+        try:
+            browser_session.page.wait_for_load_state("domcontentloaded", timeout=10000)
+        except Exception:
+            pass
+
+        bdd_context.store["product_url"] = browser_session.page.url
+        logger.info('%s 모듈(%s번째) 내 %s번째 상품 클릭 완료: %s', module_title, n, nth, goodscode)
+
+    except Exception as e:
+        # 예상치 못한 예외 처리
+        logger.error(f"프론트 동작 중 예외 발생: {e}", exc_info=True)
+        record_frontend_failure(
+            browser_session,
+            bdd_context,
+            str(e),
+            '홈에서 사용자가 "<n>"번째 "<module_title>" 모듈 내 <nth>번째 상품을 확인하고 클릭한다',
+        )
+        if 'module_title' not in bdd_context.store:
+            bdd_context.store['module_title'] = module_title
+        bdd_context.store['nth'] = int(nth)

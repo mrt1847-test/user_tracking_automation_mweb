@@ -2,8 +2,12 @@
 프론트엔드 동작 실패 처리 관련 헬퍼 함수
 """
 import os
+import re
 import logging
 from datetime import datetime
+
+# Windows 파일명에 쓸 수 없는 문자(스텝 이름에 <section_name> 등이 들어갈 때 대비)
+_WIN_FILENAME_FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +36,8 @@ def capture_frontend_failure_screenshot(browser_session, bdd_context, error_mess
                 # 실패 스텝 이름으로 파일명 생성
                 if not step_name:
                     step_name = bdd_context.get('failed_step_name', 'unknown_step') if hasattr(bdd_context, 'get') else 'unknown_step'
-                safe_step_name = step_name.replace(' ', '_').replace('/', '_').replace('\\', '_')[:50]  # 파일명에 사용 불가능한 문자 제거
+                safe_step_name = _WIN_FILENAME_FORBIDDEN.sub("_", step_name)
+                safe_step_name = safe_step_name.replace(" ", "_")[:80]
                 screenshot_path = f"screenshots/frontend_fail_{safe_step_name}_{timestamp}.png"
                 os.makedirs(os.path.dirname(screenshot_path), exist_ok=True)
                 page.screenshot(path=screenshot_path, timeout=PAGE_SCREENSHOT_TIMEOUT_MS)

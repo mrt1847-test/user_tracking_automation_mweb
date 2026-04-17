@@ -4,6 +4,7 @@
 """
 import json
 import argparse
+import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -16,11 +17,36 @@ from utils.google_sheets_sync import (
     GoogleSheetsSync,
     unflatten_json,
 )
-from utils.common_fields import (
-    load_common_fields_by_event,
-    get_common_fields_for_event_type,
-    EVENT_TYPE_TO_CONFIG_KEY,
+from utils.schema_template_merge import (
+    default_schema_template_path,
+    merge_template_with_sheet_data,
+    normalize_sheet_config_for_template_merge,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_template_path(
+    merge_structure: bool,
+    explicit_template: Optional[str],
+    fallback_existing_output: Optional[Path] = None,
+) -> Optional[Path]:
+    """
+    구조 병합용 템플릿 경로: --template > schema_template.json > 기존 출력 JSON(단일 모듈 폴백).
+    """
+    if not merge_structure:
+        return None
+    if explicit_template:
+        p = Path(explicit_template)
+        if p.is_file():
+            return p
+        print(f"경고: --template 파일 없음 ({p}), schema_template.json 또는 출력 파일 폴백을 시도합니다.")
+    default_tp = default_schema_template_path(project_root)
+    if default_tp.is_file():
+        return default_tp
+    if fallback_existing_output is not None and fallback_existing_output.is_file():
+        return fallback_existing_output
+    return None
 
 
 def create_config_json(
@@ -67,71 +93,24 @@ def create_config_json(
     return config
 
 
-def merge_module_with_common(
-    event_data_dict: Dict[str, List[Dict[str, Any]]],
-    common_fields_data: Dict[str, Any],
-) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    모듈 필드와 공통 필드를 병합 (payload prefix 등 처리 포함).
-    """
-    merged_event_data_dict = {}
-    payload_preserving_types = [
-        'module_exposure', 'product_atc_click', 'product_minidetail', 'pdp_pv',
-        'pdp_buynow_click', 'pdp_atc_click', 'pdp_gift_click', 'pdp_join_click', 'pdp_rental_click',
-    ]
-
-    for config_key, module_fields in event_data_dict.items():
-        event_type = None
-        for et, ck in EVENT_TYPE_TO_CONFIG_KEY.items():
-            if ck == config_key:
-                event_type = et
-                break
-
-        if not event_type:
-            merged_event_data_dict[config_key] = module_fields
-            continue
-
-        common_fields = get_common_fields_for_event_type(event_type, common_fields_data)
-        common_flat = []
-        for path, field_data in common_fields.items():
-            common_flat.append({
-                'path': path,
-                'value': str(field_data.get('value', ''))
-            })
-
-        module_paths = {item['path'] for item in module_fields}
-        merged_flat = []
-        is_payload_preserving = config_key in payload_preserving_types
-
-        for item in common_flat:
-            path = item['path']
-            if is_payload_preserving:
-                if not path.startswith('payload.'):
-                    payload_path = f'payload.{path}'
-                    if payload_path not in module_paths:
-                        item = item.copy()
-                        item['path'] = payload_path
-                        merged_flat.append(item)
-                else:
-                    if path not in module_paths:
-                        merged_flat.append(item)
-            else:
-                if path not in module_paths:
-                    merged_flat.append(item)
-
-        if is_payload_preserving:
-            for item in module_fields:
-                path = item['path']
-                if not path.startswith('payload.'):
-                    item = item.copy()
-                    item['path'] = f'payload.{path}'
-                merged_flat.append(item)
-        else:
-            merged_flat.extend(module_fields)
-
-        merged_event_data_dict[config_key] = merged_flat
-
-    return merged_event_data_dict
+def _apply_structure_template(
+    config_json: Dict[str, Any],
+    template_path: Optional[Path],
+    merge_structure: bool,
+) -> Dict[str, Any]:
+    """tracking_schemas 형태 템플릿이 있으면 키·구조 유지하고 시트 값만 리프에 반영."""
+    if not merge_structure or not template_path or not template_path.is_file():
+        return config_json
+    try:
+        with open(template_path, "r", encoding="utf-8") as f:
+            template = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("템플릿 로드 실패, 병합 생략: %s (%s)", template_path, e)
+        return config_json
+    if not isinstance(template, dict):
+        return config_json
+    normalized = normalize_sheet_config_for_template_merge(template, config_json)
+    return merge_template_with_sheet_data(template, normalized)
 
 
 def convert_module_to_json(
@@ -141,8 +120,9 @@ def convert_module_to_json(
     module: str,
     output_path: Path,
     overwrite: bool,
-    common_fields_data: Dict[str, Any],
     verbose: bool = True,
+    template_path: Optional[Path] = None,
+    merge_structure: bool = True,
 ) -> bool:
     """
     시트에서 한 모듈 데이터를 읽어 config JSON 파일로 저장.
@@ -160,8 +140,8 @@ def convert_module_to_json(
             print(f"  [건너뜀] 모듈 '{module}' 데이터 없음")
         return False
 
-    merged = merge_module_with_common(event_data_dict, common_fields_data)
-    config_json = create_config_json(merged)
+    config_json = create_config_json(event_data_dict)
+    config_json = _apply_structure_template(config_json, template_path, merge_structure)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(config_json, f, ensure_ascii=False, indent=2)
@@ -202,6 +182,20 @@ def main():
         action='store_true',
         help='기존 파일이 있으면 덮어쓰기 (기본값: False)'
     )
+    parser.add_argument(
+        '--template',
+        type=str,
+        default=None,
+        help=(
+            '구조 고정용 JSON 경로 (기본: tracking_schemas/schema_template.json, 없으면 단일 모드에서 기존 출력 파일). '
+            '해당 키·중첩을 유지하고 시트에서 읽은 값만 리프에 반영.'
+        ),
+    )
+    parser.add_argument(
+        '--no-structure-merge',
+        action='store_true',
+        help='템플릿 병합 없이 시트 데이터만으로 JSON 생성 (기존 동작에 가깝게)',
+    )
 
     args = parser.parse_args()
 
@@ -239,15 +233,6 @@ def _run_sheet_mode(args: Any) -> None:
     print(f"구글 시트 연결 중... (Spreadsheet ID: {SPREADSHEET_ID})")
     sync = GoogleSheetsSync(SPREADSHEET_ID, CREDENTIALS_PATH)
 
-    print("공통 필드 읽는 중...")
-    common_fields_data = sync.read_common_fields_by_event()
-    if not common_fields_data:
-        common_fields_data = load_common_fields_by_event()
-    if common_fields_data:
-        print(f"공통 필드 로드 완료: {len(common_fields_data)}개 이벤트 타입")
-    else:
-        print("공통 필드 없음. 모듈 필드만 사용합니다.")
-
     worksheet_name = args.area
     print(f"\n시트 '{worksheet_name}' 전체 변환 (모듈별 JSON 생성)...")
     try:
@@ -266,13 +251,18 @@ def _run_sheet_mode(args: Any) -> None:
     print(f"모듈 {len(modules)}개 발견: {modules}")
     out_dir = project_root / 'tracking_schemas' / args.area
     out_dir.mkdir(parents=True, exist_ok=True)
+    merge_structure = not args.no_structure_merge
+    explicit = args.template
     success = 0
     for module in modules:
         output_path = out_dir / f"{module}.json"
+        tp = _resolve_template_path(merge_structure, explicit, output_path)
         if convert_module_to_json(
             sync, worksheet, args.area, module,
-            output_path, args.overwrite, common_fields_data,
+            output_path, args.overwrite,
             verbose=True,
+            template_path=tp,
+            merge_structure=merge_structure,
         ):
             success += 1
     print(f"\n완료: {success}/{len(modules)}개 모듈 JSON 생성 -> {out_dir}")
@@ -295,15 +285,6 @@ def _run_single_module_mode(args: Any) -> None:
     print(f"구글 시트 연결 중... (Spreadsheet ID: {SPREADSHEET_ID})")
     sync = GoogleSheetsSync(SPREADSHEET_ID, CREDENTIALS_PATH)
 
-    print("공통 필드 읽는 중...")
-    common_fields_data = sync.read_common_fields_by_event()
-    if common_fields_data:
-        print(f"공통 필드 읽기 완료: {len(common_fields_data)}개 이벤트 타입")
-    else:
-        common_fields_data = load_common_fields_by_event()
-        if common_fields_data:
-            print(f"파일에서 공통 필드 로드 완료: {len(common_fields_data)}개 이벤트 타입")
-
     worksheet_name = args.area
     print(f"\n시트 '{worksheet_name}'에서 모듈 '{args.module}' 데이터 읽는 중...")
     try:
@@ -322,15 +303,11 @@ def _run_single_module_mode(args: Any) -> None:
         print("  시트 이름: '%s', 모듈: '%s'" % (worksheet_name, args.module))
         sys.exit(1)
 
-    print("\n공통 필드와 모듈 필드 병합 중...")
-    merged_event_data_dict = merge_module_with_common(event_data_dict, common_fields_data)
-    for config_key, merged_flat in merged_event_data_dict.items():
-        module_fields = event_data_dict.get(config_key, [])
-        common_count = len(merged_flat) - len(module_fields)
-        print(f"  [{config_key}]: 공통 %s개 + 고유 %s개 = 총 %s개" % (common_count, len(module_fields), len(merged_flat)))
-
     print("\nconfig JSON 구조 생성 중...")
-    config_json = create_config_json(merged_event_data_dict)
+    config_json = create_config_json(event_data_dict)
+    merge_structure = not args.no_structure_merge
+    tp = _resolve_template_path(merge_structure, args.template, output_path)
+    config_json = _apply_structure_template(config_json, tp, merge_structure)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     print(f"\nJSON 파일 저장 중: {output_path}")
     with open(output_path, 'w', encoding='utf-8') as f:

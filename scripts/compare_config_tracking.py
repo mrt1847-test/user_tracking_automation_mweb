@@ -11,7 +11,6 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from utils.google_sheets_sync import flatten_json
-from utils.common_fields import load_common_fields_by_event, get_common_fields_for_event_type, EVENT_TYPE_TO_CONFIG_KEY
 
 # 이벤트 타입 매핑
 EVENT_TYPE_MAP = {
@@ -63,9 +62,12 @@ def normalize_path(path: str, remove_payload_prefix: bool = False, remove_decode
     return path
 
 
-def compare_event(event_type: str, tracking_data: Dict[str, Any], config_data: Dict[str, Any], 
-                 common_fields_data: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """단일 이벤트 타입 비교"""
+def compare_event(
+    event_type: str,
+    tracking_data: Dict[str, Any],
+    config_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """단일 이벤트 타입 비교 (모듈 config 섹션만 기준)"""
     config_key = EVENT_TYPE_MAP.get(event_type)
     if not config_key:
         return {}
@@ -75,8 +77,6 @@ def compare_event(event_type: str, tracking_data: Dict[str, Any], config_data: D
     tracking_flat = flatten_json(tracking_data, exclude_keys=['timestamp', 'method', 'url'])
     
     # payload prefix를 제거해야 하는 이벤트 타입 확인
-    # module_exposure는 공통 필드에 payload. prefix가 있지만, 
-    # product_exposure와 product_click은 공통 필드에 payload. prefix가 없음
     remove_payload = config_key in ['product_exposure', 'product_click']
     
     # decoded_gokey.params prefix를 제거해야 하는 이벤트 타입 확인
@@ -91,44 +91,26 @@ def compare_event(event_type: str, tracking_data: Dict[str, Any], config_data: D
             path = path[8:]  # 'payload.' 길이만큼 제거
         tracking_paths.add(normalize_path(path, remove_payload_prefix=False, remove_decoded_gokey=remove_decoded_gokey))
     
-    # config에서 필드 추출 (공통 필드 + 모듈 필드)
     config_event_config = config_data.get(config_key, {})
-    
-    # 공통 필드 가져오기
-    common_fields = get_common_fields_for_event_type(event_type, common_fields_data)
-    common_paths = {normalize_path(path) for path in common_fields.keys()}
-    
-    # 모듈 필드 가져오기
     if config_event_config:
-        # payload 구조 확인
-        if 'payload' in config_event_config:
-            module_flat = flatten_json(config_event_config, exclude_keys=['timestamp', 'method', 'url'])
-        else:
-            module_flat = flatten_json(config_event_config, exclude_keys=['timestamp', 'method', 'url'])
+        module_flat = flatten_json(config_event_config, exclude_keys=['timestamp', 'method', 'url'])
     else:
         module_flat = []
-    
+
     module_paths = {normalize_path(item['path']) for item in module_flat}
-    
-    # 전체 config 경로 (공통 + 모듈)
-    all_config_paths = common_paths | module_paths
-    
-    # 누락된 필드 찾기
+    all_config_paths = module_paths
+
     missing_in_config = tracking_paths - all_config_paths
-    
-    # 결과 정리
+
     result = {
         'event_type': event_type,
         'config_key': config_key,
         'tracking_fields_count': len(tracking_paths),
         'config_fields_count': len(all_config_paths),
-        'common_fields_count': len(common_paths),
         'module_fields_count': len(module_paths),
         'missing_fields': sorted(list(missing_in_config)),
         'missing_count': len(missing_in_config),
-        'missing_in_common': sorted(list(missing_in_config & common_paths)),
-        'missing_in_module': sorted(list(missing_in_config & module_paths)),
-        'only_in_tracking': sorted(list(missing_in_config))
+        'only_in_tracking': sorted(list(missing_in_config)),
     }
     
     return result
@@ -139,8 +121,7 @@ def main():
     project_root = Path(__file__).parent.parent
     tracking_file = project_root / 'json' / 'tracking_all_4.5_이상.json'
     config_file = project_root / 'tracking_schemas' / 'SRP' / '4.5 이상.json'
-    common_fields_file = project_root / 'tracking_schemas' / '_common_fields_by_event.json'
-    
+
     # 파일 읽기
     print("파일 로드 중...")
     with open(tracking_file, 'r', encoding='utf-8') as f:
@@ -148,10 +129,6 @@ def main():
     
     with open(config_file, 'r', encoding='utf-8') as f:
         config_data = json.load(f)
-    
-    common_fields_data = load_common_fields_by_event(common_fields_file)
-    
-    print(f"공통 필드 로드 완료: {len(common_fields_data)}개 이벤트 타입\n")
     
     # 비교할 이벤트 타입 (pv, pdp_pv 제외)
     exclude_types = ['PV', 'PDP PV']
@@ -168,7 +145,7 @@ def main():
             continue
         
         payload = event.get('payload', {})
-        result = compare_event(event_type, payload, config_data, common_fields_data)
+        result = compare_event(event_type, payload, config_data)
         results.append(result)
     
     # 결과 출력
@@ -180,24 +157,13 @@ def main():
         print(f"\n[{result['event_type']}]")
         print(f"  Config Key: {result['config_key']}")
         print(f"  Tracking 필드 수: {result['tracking_fields_count']}")
-        print(f"  Config 필드 수: {result['config_fields_count']} (공통: {result['common_fields_count']}, 모듈: {result['module_fields_count']})")
+        print(f"  Config 필드 수: {result['config_fields_count']} (모듈: {result['module_fields_count']})")
         print(f"  누락된 필드 수: {result['missing_count']}")
         
         if result['missing_count'] > 0:
             print(f"\n  [WARNING] 누락된 필드 목록:")
             for field in result['missing_fields'][:20]:  # 최대 20개만 표시
-                # 공통 필드에 있는지 확인
-                in_common = field in result['missing_in_common']
-                in_module = field in result['missing_in_module']
-                
-                if in_common:
-                    status = "[공통 필드에 있음]"
-                elif in_module:
-                    status = "[모듈 필드에 있음]"
-                else:
-                    status = "[완전히 누락]"
-                
-                print(f"    - {field} {status}")
+                print(f"    - {field} [config에 없음]")
             
             if len(result['missing_fields']) > 20:
                 print(f"    ... 외 {len(result['missing_fields']) - 20}개")

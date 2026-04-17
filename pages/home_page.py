@@ -5,7 +5,7 @@ import re
 import logging
 
 from pages.base_page import BasePage
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, expect, Locator
 from utils.urls import base_url
 
 logger = logging.getLogger(__name__)
@@ -168,6 +168,76 @@ class HomePage(BasePage):
         logger.info("RVH 버튼 클릭")
         self.click(".link__rvh")
 
+    def _home_section_tab_link(self, section_name: str) -> tuple[str, Locator]:
+        """
+        `section_name`에 해당하는 홈 섹션 탭 링크(`a.link__tab`)를 찾는다.
+
+        Returns:
+            (정규화된 이름, 해당 링크 Locator)
+
+        Raises:
+            ValueError: 탭을 찾지 못한 경우
+        """
+        name = (section_name or "").strip()
+        if not name:
+            raise ValueError("section_name이 비어 있습니다.")
+
+        tab_links: Locator = self.page.locator("li.list-item__tab a.link__tab")
+        by_alt = tab_links.filter(has=self.page.locator(f'img[alt="{name}"]'))
+        if by_alt.count() > 0:
+            return name, by_alt.first
+        by_text = tab_links.filter(has_text=re.compile(f"^{re.escape(name)}$"))
+        if by_text.count() == 0:
+            raise ValueError(
+                f"홈 섹션 탭을 찾을 수 없습니다: {name!r} "
+                "(img alt 또는 탭 텍스트와 정확히 일치해야 합니다)"
+            )
+        return name, by_text.first
+
+    def click_home_section_tab(self, section_name: str) -> None:
+        """
+        홈 상단 섹션 탭(`li.list-item__tab` > `a.link__tab`)을 클릭한다.
+
+        아이콘형 탭은 `img[alt]`가 section_name 과 일치할 때,
+        텍스트형 탭은 링크(하위 span 등)에 보이는 텍스트가 section_name 과 일치할 때 매칭한다.
+
+        Args:
+            section_name: 탭 식별 문자열 (예: 슈퍼딜, 이마트몰, 베스트)
+
+        Raises:
+            ValueError: 해당 이름의 탭을 찾지 못한 경우
+        """
+        name, target = self._home_section_tab_link(section_name)
+
+        logger.info("홈 섹션 탭 클릭: %s", name)
+        target.wait_for(state="attached", timeout=10000)
+        # 가로 스크롤 탭 바: 기본 scroll_into_view_if_needed는 세로 위주로 동작하는 경우가 많아
+        # inline: center 로 가로 스크롤 영역 안에서 탭이 뷰포트에 들어오게 한다.
+        target.evaluate(
+            """el => el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'auto' })"""
+        )
+        target.wait_for(state="visible", timeout=5000)
+        target.click(timeout=self.timeout)
+
+    def expect_home_section_tab_active(self, section_name: str, timeout: int = None) -> None:
+        """
+        해당 섹션 탭이 선택된 상태인지 검증한다.
+
+        선택 시 부모 `li.list-item__tab`에 `list-item__tab--active` 클래스가 붙는 동작을 기준으로 한다.
+
+        Args:
+            section_name: `click_home_section_tab`과 동일한 식별 문자열
+            timeout: 검증 대기 시간(ms). None이면 self.timeout 사용.
+
+        Raises:
+            ValueError: 탭을 찾지 못한 경우
+            AssertionError: 해당 탭의 li에 active 클래스가 없을 때(Playwright expect)
+        """
+        _, link = self._home_section_tab_link(section_name)
+        parent_li = link.locator("xpath=..")
+        timeout_ms = timeout if timeout is not None else self.timeout
+        expect(parent_li).to_contain_class("list-item__tab--active", timeout=timeout_ms)
+
     def wait_for_rvh_page_load(self, timeout: int = None) -> bool:
         """
         RVH 페이지 로드 대기.
@@ -222,3 +292,35 @@ class HomePage(BasePage):
         """
         logger.debug("모듈 내 상품 요소 찾기")
         return self.page.locator(".list-rvh__content-item--product a").first
+
+
+    def find_module_by_spmc(self, spmc: str, target_index: int = 0) -> Locator:
+        """
+        spmc 값으로 모듈을 찾는다.
+
+        Args:
+            spmc: `data-spm` 속성값(예: today_itemcarousel).
+            target_index: 동일 spmc 매칭 요소 중 **0-based** 인덱스(첫 번째=0). feature의 n은 1-based이므로 호출부에서 n-1을 넘긴다.
+
+        1) `[data-spm]` + has_text(spmc) — 노출 텍스트와 spmc가 맞는 경우(또는 하위에 해당 문자열이 있는 경우)
+        2) `[data-spm='spmc']` — 속성만으로 DOM에 이미 충분히 있을 때(스크롤 없음)
+        3) 위로 부족하면 `scroll_until_selector_appears`로 스크롤하며 탐색
+        """
+        logger.debug(f"spmc 로 모듈 찾기: {spmc} (0-based index={target_index})")
+        nth_index = max(int(target_index), 0)
+
+        by_text = self.page.locator("[data-spm]", has_text=spmc)
+        if by_text.count() > nth_index:
+            logger.debug("data-spm + has_text 즉시 매칭")
+            return by_text.nth(nth_index)
+
+        by_attr = self.page.locator(f"[data-spm='{spmc}']")
+        if by_attr.count() > nth_index:
+            logger.debug("data-spm 속성 일치로 즉시 매칭 (스크롤 생략)")
+            return by_attr.nth(nth_index)
+
+        base_page = BasePage(self.page)
+        return base_page.scroll_until_selector_appears(
+            f"[data-spm='{spmc}']",
+            target_index=nth_index,
+        )

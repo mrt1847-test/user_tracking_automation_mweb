@@ -103,7 +103,7 @@ def load_module_config(
     nth: Optional[Union[int, str]] = None
 ) -> Dict[str, Any]:
     """
-    모듈별 설정을 JSON 파일에서 로드 (검증 기준은 이 파일만 사용. tracking_schemas/_common_fields_by_event.json 미사용)
+    모듈별 설정을 JSON 파일에서 로드 (검증 기준은 해당 모듈 JSON만 사용)
     
     Args:
         area: 영역명 (SRP, PDP, HOME, CART 등). None이면 feature_path에서 추론
@@ -643,7 +643,7 @@ def validate_event_type_logs(
     if len(logs) == 0:
         return True, [], {}
     
-    # 검증 기준은 오로지 각 모듈별 JSON(tracking_schemas/{area}/{module}.json)만 사용. _common_fields_by_event.json 은 사용하지 않음.
+    # 검증 기준은 각 모듈별 JSON(tracking_schemas/{area}/{module}.json)만 사용.
     expected = build_expected_from_module_config(
         module_config_data,
         event_type,
