@@ -635,6 +635,75 @@ class BasePage:
             f"가로 스크롤 보정 실패: timeout_ms={timeout_ms}, last_state={last_state}"
         )
 
+    def _is_locator_in_viewport(self, locator: Locator, min_ratio: float = 0.01) -> bool:
+        try:
+            ratio = locator.evaluate(
+                """
+                el => {
+                    const r = el.getBoundingClientRect();
+                    const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+                    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+                    if (!r || r.width <= 0 || r.height <= 0) return 0;
+                    const ix = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+                    const iy = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+                    const area = r.width * r.height;
+                    return area > 0 ? (ix * iy) / area : 0;
+                }
+                """
+            )
+            return ratio is not None and float(ratio) >= min_ratio
+        except Exception:
+            return False
+
+    def _get_swiper_viewport(self, module_locator: Locator) -> Locator:
+        swiper = module_locator.locator(".swiper").first
+        if swiper.count() > 0:
+            return swiper
+
+        wrapper = module_locator.locator(".swiper-wrapper").first
+        if wrapper.count() > 0:
+            parent = wrapper.locator("xpath=..")
+            if parent.count() > 0:
+                return parent.first
+            return wrapper
+
+        return module_locator
+
+    def _drag_swiper_left(self, module_locator: Locator, distance_ratio: float = 0.65) -> None:
+        viewport = self._get_swiper_viewport(module_locator)
+        box = viewport.bounding_box()
+        if not box or box["width"] <= 0 or box["height"] <= 0:
+            raise RuntimeError("Swiper 드래그 영역의 bounding box를 가져오지 못했습니다.")
+
+        y = box["y"] + (box["height"] * 0.5)
+        start_x = box["x"] + (box["width"] * 0.8)
+        end_x = box["x"] + (box["width"] * max(0.1, 0.8 - distance_ratio))
+        self.page.mouse.move(start_x, y)
+        self.page.mouse.down()
+        self.page.mouse.move(end_x, y, steps=12)
+        self.page.mouse.up()
+
+    def swipe_until_target_visible(
+        self,
+        target: Locator,
+        module_locator: Locator,
+        max_swipes: int = 6,
+        pause_ms: int = 250,
+    ) -> bool:
+        for attempt in range(1, max_swipes + 1):
+            if self._is_locator_in_viewport(target):
+                logger.debug(f"타겟이 viewport에 진입함: attempt={attempt}")
+                return True
+
+            try:
+                self._drag_swiper_left(module_locator)
+            except Exception as e:
+                logger.debug(f"swiper 드래그 실패: attempt={attempt}, error={e}")
+                return False
+            self.page.wait_for_timeout(pause_ms)
+
+        return self._is_locator_in_viewport(target)
+
     def get_product_code(self, product_locator: Locator) -> Optional[str]:
         """
         상품 코드 가져오기

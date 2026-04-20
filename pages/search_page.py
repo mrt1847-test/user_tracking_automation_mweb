@@ -491,8 +491,27 @@ class SearchPage(BasePage):
             f'.button__cart[data-montelena-goodscode="{goodscode}"]'
         ).first
 
-        self.ensure_locator_in_horizontal_view(target, parent_locator=module_locator, timeout_ms=3000)
-        self.debug_locator_state(target, "after_horizontal_scroll")
+        try:
+            expect(target).to_be_visible(timeout=3000)
+            expect(target).to_be_in_viewport(timeout=3000)
+            target.tap(trial=True, timeout=2000)
+            target.tap(timeout=5000)
+            logger.debug(f"장바구니 버튼 1차 탭 성공: goodscode={goodscode}")
+            return
+        except Exception as e:
+            logger.debug(f"장바구니 버튼 1차 탭 실패, swiper 전환 시도: goodscode={goodscode}, error={e}")
+            self.debug_locator_state(target, "initial_tap_failed")
+
+        became_visible = self.swipe_until_target_visible(
+            target=target,
+            module_locator=module_locator,
+            max_swipes=6,
+            pause_ms=250,
+        )
+        self.debug_locator_state(target, "after_swipe_attempts")
+
+        if not became_visible:
+            raise TimeoutError(f"Swiper 스와이프 후에도 장바구니 버튼이 viewport에 들어오지 않음: goodscode={goodscode}")
 
         try:
             expect(target).to_be_visible(timeout=3000)
@@ -500,8 +519,8 @@ class SearchPage(BasePage):
             target.tap(trial=True, timeout=2000)
             target.tap(timeout=5000)
         except Exception as e:
-            logger.warning(f"탭 전 검증/탭 실패: {e}")
-            self.debug_locator_state(target, "tap_failed")
+            self.debug_locator_state(target, "final_tap_failed")
+            raise RuntimeError(f"Swiper 이동 후 장바구니 버튼 탭 실패: goodscode={goodscode}, error={e}") from e
 
 
     def is_add_to_cart_button_visible(self, module_locator: Locator, goodscode: str) -> bool:
