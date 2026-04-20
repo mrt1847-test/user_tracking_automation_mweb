@@ -2,4 +2,4 @@
 from pytest_bdd import scenarios
 
 # 특정 feature 파일만 로드
-scenarios("../../features/dev/gemini_tracking.feature")
+scenarios("../../features/dev/gemini2_tracking.feature")

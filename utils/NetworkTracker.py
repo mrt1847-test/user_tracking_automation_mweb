@@ -1543,8 +1543,8 @@ class NetworkTracker:
                 else:
                     field_passed = True
             else:
-                # 포함 여부 매칭이 필요한 필드들 (spm, spm-url, spm-pre, spm-cnt)
-                contains_match_fields = {'spm', 'spm-url', 'spm-pre', 'spm-cnt'}
+                # 포함 여부 매칭이 필요한 필드들 (spm은 제외: 정확 비교)
+                contains_match_fields = {'spm-url', 'spm-pre', 'spm-cnt'}
                 
                 if key in contains_match_fields and isinstance(expected_value, str) and isinstance(actual_value, str):
                     # SPM 값 정규화: 마지막 숫자 부분 제거 (예: ditem0 → ditem, ditem1 → ditem)

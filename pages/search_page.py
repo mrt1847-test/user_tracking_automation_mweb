@@ -375,6 +375,10 @@ class SearchPage(BasePage):
             return wait_and_return(self.page.locator(".text__title", has_text="의 비슷한 인기브랜드에요"))
         elif module_title == "브랜드 인기상품":
             return wait_and_return(self.page.locator(".text__title", has_text="인기상품"))
+        elif module_title == "반복구매":
+            return wait_and_return(
+                self.page.locator(".text__title", has_text=re.compile(r"최근 구매한 상품|상품의 최저가예요"))
+            )
         elif module_title == "백화점픽":
             return wait_and_return(self.page.locator(".text__title", has_text="요즘 뜨는 백화점"))
         elif module_title == "대체검색어":
@@ -383,6 +387,8 @@ class SearchPage(BasePage):
             return wait_and_return(self.page.get_by_text("믿고 사는 MD's Pick")).locator("xpath=..")
         elif module_title == "장바구니 모듈":
             return wait_and_return(self.page.locator("h3.text__title", has_text="장바구니"))
+        elif module_title == "장바구니VT":
+            return wait_and_return(self.page.locator(".text__title", has_text="함께 보면 좋은 상품"))
         elif module_title in ("카탈로그 모듈", "카탈로그 그룹형", "카탈로그 일반형", "카탈로그 속성형"):
             return wait_and_return(self.page.locator(".text__title", has_text="판매인기"))
         elif module_title in ("판매 인기순", "상품평 많은순", "신규 상품순"):
@@ -440,6 +446,21 @@ class SearchPage(BasePage):
         logger.debug("모듈 내 상품 요소 찾기")
         return parent_locator.locator(".list-item > a").nth(max(int(index), 0))
 
+    def get_product_in_module_type4(self, parent_locator: Locator, index: int = 0) -> Locator:
+        """
+        모듈 내 상품 요소 찾기
+        
+        Args:
+            parent_locator: 모듈 부모 Locator 객체
+            index: 선택할 상품 인덱스 (0부터 시작)
+            
+        Returns:
+            상품 Locator 객체
+        """
+        logger.debug("모듈 내 상품 요소 찾기")
+        nth_index = max(int(index), 0)
+        return parent_locator.locator("div.box__itemcard").nth(nth_index)
+    
     def wait_for_new_page(self):
         """
         새 페이지가 열릴 때까지 대기하는 컨텍스트 매니저
@@ -450,20 +471,38 @@ class SearchPage(BasePage):
         logger.debug("새 페이지 대기")
         return self.page.context.expect_page()
 
+    def debug_locator_state(self, locator, name="target"):
+        box = locator.bounding_box()
+        rect = locator.evaluate("""
+            el => {
+                const r = el.getBoundingClientRect();
+                return {
+                    x: r.x, y: r.y, width: r.width, height: r.height,
+                    left: r.left, right: r.right, top: r.top, bottom: r.bottom,
+                    innerWidth: window.innerWidth, innerHeight: window.innerHeight
+                };
+            }
+        """)
+        logger.debug(f"{name} bounding_box={box}")
+        logger.debug(f"{name} client_rect={rect}")
+
     def click_add_to_cart_button(self, module_locator: Locator, goodscode: str):
-        """
-        상품 번호로 장바구니 담기 클릭
-        
-        Args:
-            goodscode: 상품 번호
-        """
-        module_locator.locator(f'.button__cart[data-montelena-goodscode="{goodscode}"]').nth(0).tap(timeout=5000)
-        logger.debug(f"장바구니 담기 탭: {goodscode}")
+        target = module_locator.locator(
+            f'.button__cart[data-montelena-goodscode="{goodscode}"]'
+        ).first
+
+        self.ensure_locator_in_horizontal_view(target, parent_locator=module_locator, timeout_ms=3000)
+        self.debug_locator_state(target, "after_horizontal_scroll")
+
         try:
-            self.page.locator('strong.text__button:has-text("계속 쇼핑")').tap(timeout=5000)
+            expect(target).to_be_visible(timeout=3000)
+            expect(target).to_be_in_viewport(timeout=3000)
+            target.tap(trial=True, timeout=2000)
+            target.tap(timeout=5000)
         except Exception as e:
-            logger.debug(f"계속 쇼핑 클릭 실패: {e}")
-        logger.debug(f"계속 쇼핑 클릭 완료: {goodscode}")
+            logger.warning(f"탭 전 검증/탭 실패: {e}")
+            self.debug_locator_state(target, "tap_failed")
+
 
     def is_add_to_cart_button_visible(self, module_locator: Locator, goodscode: str) -> bool:
         """
@@ -481,7 +520,7 @@ class SearchPage(BasePage):
             logger.debug(f"장바구니 담기 버튼 없음: {goodscode}")
             return False
         try:
-            target = button.first
+            target = module_locator.locator(f'.button__cart[data-montelena-goodscode="{goodscode}"]').first
             if not target.is_visible():
                 target.scroll_into_view_if_needed()
             return target.is_visible() and target.is_enabled()
@@ -582,7 +621,9 @@ class SearchPage(BasePage):
             "카탈로그 속성형" : "N",
             "판매 인기순" : "N",
             "상품평 많은순" : "N",
-            "신규 상품순" : "N"
+            "신규 상품순" : "N",
+            "장바구니VT" : "F",
+            "반복구매" : "N"
         }
         
         if modulel_title not in MODULE_AD_CHECK:
@@ -606,13 +647,13 @@ class SearchPage(BasePage):
             # 상품 요소의 조상 요소에서 div.box__ads-layer 찾기
             item_container = product_locator.locator("xpath=ancestor::div[contains(@class, 'box__item-container')]")
             ads_layer = item_container.locator("div.box__ads-layer")
-            
-            if ads_layer.count() > 0:
+            ads_icon_ad = product_locator.locator("span.icon__ad")
+
+            if ads_layer.count() > 0 or ads_icon_ad.count() > 0:
                 logger.debug("광고 태그 발견: Y")
                 return "Y"
-            else:
-                logger.debug("광고 태그 없음: N")
-                return "N"
+            logger.debug("광고 태그 없음: N")
+            return "N"
         except Exception as e:
             logger.warning(f"광고 태그 확인 중 오류 발생: {e}")
             return "N"

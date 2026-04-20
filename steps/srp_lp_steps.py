@@ -175,11 +175,13 @@ def user_confirms_and_clicks_product_in_module(browser_session, module_title, nt
         
         # 모듈 내 상품 찾기 (모듈별 선택자 분기)
         nth_idx = max(int(nth) - 1, 0)
-        parent = search_page.get_module_parent(module, 3)
-        if module_title == "4.5 이상":
+        parent = search_page.get_module_parent(module, 2)
+        if module_title in ("4.5 이상", "장바구니VT"):
             product = search_page.get_product_in_module_type3(parent, nth_idx)
         elif module_title in ("백화점 브랜드", "브랜드 인기상품", "MD's Pick", "백화점픽", "최하단캐러셀", "연관키워드"):
             product = search_page.get_product_in_module_type2(parent, nth_idx)
+        elif module_title == "반복구매":
+            product = search_page.get_product_in_module_type4(parent, nth_idx)
         else:
             product = search_page.get_product_in_module(parent, nth_idx)
         search_page.scroll_product_into_view(product)

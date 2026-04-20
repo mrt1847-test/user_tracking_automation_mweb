@@ -909,7 +909,7 @@ def pytest_sessionstart(session):
     global testrail_run_id, case_id_map
     
     if not TESTRAIL_REPORT_ENABLED:
-        print("[TestRail] testrail_report가 Y가 아님 — 기록 비활성화")
+        print("[TestRail] testrail_report가 Y가 아님 - 기록 비활성화")
         return
     
     logger.debug(f"pytest_sessionstart 실행 시작")
@@ -1098,7 +1098,7 @@ def pytest_sessionfinish(session, exitstatus):
         testrail_post(f"close_run/{testrail_run_id}", {})
         print(f"[TestRail] Run {testrail_run_id} 종료 완료")
     elif testrail_run_id and not TESTRAIL_CLOSE_RUN_ON_FINISH:
-        print(f"[TestRail] testrail_close_run_on_finish=N — Run {testrail_run_id} 자동 종료 생략")
+        print(f"[TestRail] testrail_close_run_on_finish=N - Run {testrail_run_id} 자동 종료 생략")
 
     screenshots_dir = "screenshots"
     if os.path.exists(screenshots_dir):

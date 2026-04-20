@@ -507,6 +507,134 @@ class BasePage:
             f"step={scroll_step_px}, axis={axis}, last_count={n_final}"
         )
 
+    def ensure_locator_in_horizontal_view(
+        self,
+        target_locator: Locator,
+        parent_locator: Optional[Locator] = None,
+        timeout_ms: int = 5000,
+        pause_ms: int = 120,
+    ) -> None:
+        """
+        대상 요소가 가로 스크롤 컨테이너의 뷰포트 안으로 들어오도록 보정한다.
+
+        - parent_locator가 주어지면 해당 모듈 내부에서 가장 가까운 가로 스크롤 조상을 탐색
+        - 없으면 target 기준으로 조상을 탐색
+        - 컨테이너를 찾지 못하면 scrollIntoView로 폴백
+        """
+        deadline = time.time() + (timeout_ms / 1000.0)
+        target = target_locator.first
+
+        last_state = None
+
+        while time.time() < deadline:
+            try:
+                moved = target.evaluate(
+                    """
+                    (el, root) => {
+                        if (!el) return { done: false, reason: "no-element" };
+
+                        const rootNode = root || null;
+                        let p = el.parentElement;
+                        let scroller = null;
+                        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+                        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+                        const canScrollX = (node) => {
+                            if (!node) return false;
+                            const st = getComputedStyle(node);
+                            const ox = st.overflowX;
+                            return (ox === 'auto' || ox === 'scroll' || ox === 'overlay')
+                                && node.scrollWidth > node.clientWidth + 1;
+                        };
+
+                        const getViewportIntersectionRatio = (rect) => {
+                            if (!rect || rect.width <= 0 || rect.height <= 0) return 0;
+                            const ix = Math.max(
+                                0,
+                                Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0)
+                            );
+                            const iy = Math.max(
+                                0,
+                                Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0)
+                            );
+                            const intersectionArea = ix * iy;
+                            const elementArea = rect.width * rect.height;
+                            if (elementArea <= 0) return 0;
+                            return intersectionArea / elementArea;
+                        };
+
+                        while (p) {
+                            if (rootNode && p === rootNode.parentElement) break;
+                            if (canScrollX(p)) {
+                                scroller = p;
+                                break;
+                            }
+                            if (rootNode && p === rootNode) break;
+                            p = p.parentElement;
+                        }
+
+                        if (!scroller) {
+                            el.scrollIntoView({ block: 'center', inline: 'center' });
+                            const r = el.getBoundingClientRect();
+                            const viewportRatio = getViewportIntersectionRatio(r);
+                            return {
+                                done: viewportRatio > 0,
+                                reason: "fallback-scrollIntoView",
+                                viewportRatio
+                            };
+                        }
+
+                        const sr = scroller.getBoundingClientRect();
+                        const tr = el.getBoundingClientRect();
+                        const centerDelta = (tr.left + tr.width / 2) - (sr.left + sr.width / 2);
+                        const before = scroller.scrollLeft;
+                        scroller.scrollLeft += centerDelta;
+                        const after = scroller.scrollLeft;
+
+                        const tr2 = el.getBoundingClientRect();
+                        const insideX = tr2.left >= sr.left && tr2.right <= sr.right;
+                        const movedPx = Math.abs(after - before);
+                        const viewportRatio = getViewportIntersectionRatio(tr2);
+                        const done = viewportRatio > 0;
+                        return { done, reason: "scroller", moved: movedPx, insideX, viewportRatio };
+                    }
+                    """,
+                    parent_locator.element_handle() if parent_locator else None,
+                )
+
+                last_state = moved
+                if isinstance(moved, dict) and moved.get("done"):
+                    return
+            except Exception as e:
+                # evaluate 실패 시 기본 스크롤 폴백 (성공 확인 전에는 return 하지 않음)
+                logger.debug(f"ensure_locator_in_horizontal_view evaluate 실패: {e}")
+                try:
+                    target.scroll_into_view_if_needed()
+                    viewport_ratio = target.evaluate(
+                        """
+                        el => {
+                            const r = el.getBoundingClientRect();
+                            const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+                            const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+                            if (!r || r.width <= 0 || r.height <= 0) return 0;
+                            const ix = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+                            const iy = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+                            const area = r.width * r.height;
+                            return area > 0 ? (ix * iy) / area : 0;
+                        }
+                        """
+                    )
+                    if viewport_ratio and viewport_ratio > 0:
+                        return
+                except Exception as fallback_error:
+                    logger.debug(f"ensure_locator_in_horizontal_view fallback 실패: {fallback_error}")
+
+            time.sleep(pause_ms / 1000.0)
+
+        raise TimeoutError(
+            f"가로 스크롤 보정 실패: timeout_ms={timeout_ms}, last_state={last_state}"
+        )
+
     def get_product_code(self, product_locator: Locator) -> Optional[str]:
         """
         상품 코드 가져오기
