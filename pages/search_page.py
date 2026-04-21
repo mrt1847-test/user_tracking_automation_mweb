@@ -483,8 +483,10 @@ class SearchPage(BasePage):
                 };
             }
         """)
+        overlap = self._viewport_intersection_ratio(locator)
         logger.debug(f"{name} bounding_box={box}")
         logger.debug(f"{name} client_rect={rect}")
+        logger.debug(f"{name} viewport_intersection_ratio={overlap}")
 
     def click_add_to_cart_button(self, module_locator: Locator, goodscode: str):
         target = module_locator.locator(
@@ -499,8 +501,16 @@ class SearchPage(BasePage):
             logger.debug(f"장바구니 버튼 1차 탭 성공: goodscode={goodscode}")
             return
         except Exception as e:
-            logger.debug(f"장바구니 버튼 1차 탭 실패, swiper 전환 시도: goodscode={goodscode}, error={e}")
-            self.debug_locator_state(target, "initial_tap_failed")
+            # Playwright call log가 수백 줄로 붙음 — 필요 시에만 전체 예외 로그
+            # logger.debug(
+            #     f"장바구니 버튼 1차 탭 실패, swiper 전환 시도: goodscode={goodscode}, error={e}"
+            # )
+            logger.debug(
+                "장바구니 버튼 1차 탭 실패 → swiper 전환: goodscode=%s (%s)",
+                goodscode,
+                type(e).__name__,
+            )
+            # self.debug_locator_state(target, "initial_tap_failed")
 
         became_visible = self.swipe_until_target_visible(
             target=target,
@@ -508,7 +518,7 @@ class SearchPage(BasePage):
             max_swipes=6,
             pause_ms=250,
         )
-        self.debug_locator_state(target, "after_swipe_attempts")
+        # self.debug_locator_state(target, "after_swipe_attempts")
 
         if not became_visible:
             raise TimeoutError(f"Swiper 스와이프 후에도 장바구니 버튼이 viewport에 들어오지 않음: goodscode={goodscode}")

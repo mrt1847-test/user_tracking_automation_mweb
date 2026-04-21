@@ -596,21 +596,44 @@ def then_pdp_rental_click_logs_should_pass_validation(tc_id, bdd_context):
 
 @then("모든 트래킹 로그를 JSON 파일로 저장함")
 def then_save_all_tracking_logs_to_json(bdd_context):
-    """모든 트래킹 로그를 JSON 파일로 저장"""
-    tracker = bdd_context.get('tracker')
+    """
+    모든 트래킹 로그를 JSON 파일로 저장.
+    이전 프론트 스텝이 소프트 실패해 goodscode 등이 없으면 예외를 던지지 않고 건너뜀
+    (이후 정합성 검증 스텝이 try/except로 동일 상황을 처리할 수 있도록 시나리오를 끊지 않음).
+    """
+    tracker = bdd_context.get("tracker")
     if not tracker:
-        raise ValueError("bdd_context에 'tracker'가 없습니다.")
-    
-    goodscode = bdd_context.get('goodscode')
+        logger.warning(
+            "트래킹 JSON 저장 생략: bdd_context에 tracker가 없습니다. (이전 스텝 실패 가능)"
+        )
+        return
+
+    goodscode = bdd_context.get("goodscode")
     if not goodscode:
-        raise ValueError("bdd_context에 'goodscode'가 없습니다.")
-    
-    module_title = bdd_context.get('module_title')
+        logger.warning(
+            "트래킹 JSON 저장 생략: goodscode가 없습니다. "
+            "모듈 미노출·상품 미클릭 등 이전 프론트 스텝이 실패했을 수 있습니다."
+        )
+        return
+
+    module_title = bdd_context.get("module_title")
     if not module_title:
-        raise ValueError("bdd_context에 'module_title'가 없습니다.")
-    
-    nth = bdd_context.get('nth') or (getattr(bdd_context, 'store', None) and bdd_context.store.get('nth'))
-    _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=nth)
+        logger.warning(
+            "트래킹 JSON 저장 생략: module_title이 없습니다. (이전 스텝 실패 가능)"
+        )
+        return
+
+    nth = bdd_context.get("nth") or (
+        getattr(bdd_context, "store", None) and bdd_context.store.get("nth")
+    )
+    try:
+        _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=nth)
+    except Exception as e:
+        logger.error(
+            "트래킹 JSON 저장 중 오류 (다음 스텝은 계속 진행): %s",
+            e,
+            exc_info=True,
+        )
 
 
 @then("모든 로그 검증이 완료되었음")

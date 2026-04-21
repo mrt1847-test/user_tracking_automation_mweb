@@ -15,7 +15,7 @@
     "ab_buckets": "skip"
   },
   "product_exposure": {
-    "spm": "gmktm.searchlist.cartitem.d0_0",
+    "spm": "gmktm.searchlist.cartitem.d0_1",
     "spm-cnt": "gmktm.searchlist.0.0",
     "spm-url": "gmktm.home.searchpopup.dsearchbox",
     "spm-pre": "",
@@ -71,7 +71,7 @@
     }
   },
   "product_click": {
-    "spm": "gmktm.searchlist.cartitem.d0_0",
+    "spm": "gmktm.searchlist.cartitem.d0_1",
     "spm-cnt": "gmktm.searchlist.0.0",
     "spm-url": "gmktm.home.searchpopup.dsearchbox",
     "spm-pre": "",

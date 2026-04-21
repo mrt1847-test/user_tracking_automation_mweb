@@ -635,74 +635,113 @@ class BasePage:
             f"가로 스크롤 보정 실패: timeout_ms={timeout_ms}, last_state={last_state}"
         )
 
-    def _is_locator_in_viewport(self, locator: Locator, min_ratio: float = 0.01) -> bool:
+    _VIEWPORT_OVERLAP_JS = """
+        el => {
+            const r = el.getBoundingClientRect();
+            const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+            const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+            if (!r || r.width <= 0 || r.height <= 0) return 0;
+            const ix = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+            const iy = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+            const area = r.width * r.height;
+            return area > 0 ? (ix * iy) / area : 0;
+        }
+    """
+
+    def _viewport_intersection_ratio(self, locator: Locator) -> Optional[float]:
+        """뷰포트와 겹치는 면적 비율(0~1). 실패 시 None."""
         try:
-            ratio = locator.evaluate(
-                """
-                el => {
-                    const r = el.getBoundingClientRect();
-                    const vw = window.innerWidth || document.documentElement.clientWidth || 0;
-                    const vh = window.innerHeight || document.documentElement.clientHeight || 0;
-                    if (!r || r.width <= 0 || r.height <= 0) return 0;
-                    const ix = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
-                    const iy = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
-                    const area = r.width * r.height;
-                    return area > 0 ? (ix * iy) / area : 0;
-                }
-                """
-            )
-            return ratio is not None and float(ratio) >= min_ratio
+            ratio = locator.evaluate(self._VIEWPORT_OVERLAP_JS)
+            return float(ratio) if ratio is not None else None
         except Exception:
-            return False
+            return None
 
-    def _get_swiper_viewport(self, module_locator: Locator) -> Locator:
-        swiper = module_locator.locator(".swiper").first
-        if swiper.count() > 0:
-            return swiper
-
-        wrapper = module_locator.locator(".swiper-wrapper").first
-        if wrapper.count() > 0:
-            parent = wrapper.locator("xpath=..")
-            if parent.count() > 0:
-                return parent.first
-            return wrapper
-
-        return module_locator
-
-    def _drag_swiper_left(self, module_locator: Locator, distance_ratio: float = 0.65) -> None:
-        viewport = self._get_swiper_viewport(module_locator)
-        box = viewport.bounding_box()
-        if not box or box["width"] <= 0 or box["height"] <= 0:
-            raise RuntimeError("Swiper 드래그 영역의 bounding box를 가져오지 못했습니다.")
-
-        y = box["y"] + (box["height"] * 0.5)
-        start_x = box["x"] + (box["width"] * 0.8)
-        end_x = box["x"] + (box["width"] * max(0.1, 0.8 - distance_ratio))
-        self.page.mouse.move(start_x, y)
-        self.page.mouse.down()
-        self.page.mouse.move(end_x, y, steps=12)
-        self.page.mouse.up()
+    def _is_locator_in_viewport(self, locator: Locator, min_ratio: float = 0.01) -> bool:
+        r = self._viewport_intersection_ratio(locator)
+        return r is not None and r >= min_ratio
 
     def swipe_until_target_visible(
         self,
         target: Locator,
         module_locator: Locator,
         max_swipes: int = 6,
-        pause_ms: int = 250,
+        pause_ms: int = 200,
     ) -> bool:
-        for attempt in range(1, max_swipes + 1):
-            if self._is_locator_in_viewport(target):
-                logger.debug(f"타겟이 viewport에 진입함: attempt={attempt}")
+        """
+        module_locator 하위 첫 `.swiper` 요소의 `el.swiper.slideNext()`만 사용해 슬라이드를 넘긴다.
+        (포인터 드래그/drag_to 없음)
+        """
+        sw_nodes = module_locator.locator(".swiper")
+        if sw_nodes.count() == 0:
+            logger.debug("swiper info: module 내 .swiper 없음")
+            final_ratio = self._viewport_intersection_ratio(target)
+            logger.warning(
+                "swipe_until_target_visible 실패 요약: final_ratio=%s, reason=no_.swiper",
+                final_ratio,
+            )
+            return False
+
+        swiper = sw_nodes.first
+
+        for i in range(max_swipes):
+            ratio = self._viewport_intersection_ratio(target)
+            if ratio is not None and ratio > 0:
                 return True
 
             try:
-                self._drag_swiper_left(module_locator)
+                move = swiper.evaluate(
+                    """
+                    el => {
+                        const s = el.swiper;
+                        if (!s) return { ok: false, reason: "no-swiper" };
+                        const before = s.activeIndex;
+                        s.slideNext();
+                        return {
+                            ok: true,
+                            before,
+                            after: s.activeIndex,
+                            isBeginning: s.isBeginning,
+                            isEnd: s.isEnd,
+                            allowTouchMove: s.allowTouchMove,
+                        };
+                    }
+                    """
+                )
             except Exception as e:
-                logger.debug(f"swiper 드래그 실패: attempt={attempt}, error={e}")
+                logger.warning("swiper slideNext evaluate 실패: i=%s, error=%s", i, e)
+                logger.debug("swiper slideNext 예외 상세", exc_info=True)
                 return False
+
+            if isinstance(move, dict) and move.get("ok"):
+                before = move.get("before")
+                after = move.get("after")
+                if before is not None and after is not None and before == after:
+                    logger.warning(
+                        "swiper activeIndex 변화 없음 (잘못된 .swiper 이거나 다른 구조): "
+                        "move[%s]=%s",
+                        i,
+                        move,
+                    )
+
             self.page.wait_for_timeout(pause_ms)
 
-        return self._is_locator_in_viewport(target)
+        final_ok = self._is_locator_in_viewport(target)
+        final_ratio = self._viewport_intersection_ratio(target)
+        if not final_ok:
+            counts = {
+                "swiper": module_locator.locator(".swiper").count(),
+                "swiper-container": module_locator.locator(".swiper-container").count(),
+                "swiper-wrapper": module_locator.locator(".swiper-wrapper").count(),
+            }
+            sw_box = sw_nodes.first.bounding_box()
+            logger.warning(
+                "swipe_until_target_visible 실패 요약: final_ratio=%s, descendant_counts=%s, "
+                "first_.swiper_bounding_box=%s",
+                final_ratio,
+                counts,
+                sw_box,
+            )
+        return final_ok
 
     def get_product_code(self, product_locator: Locator) -> Optional[str]:
         """
