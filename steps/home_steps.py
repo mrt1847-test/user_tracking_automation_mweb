@@ -5,6 +5,7 @@
 import os
 from pathlib import Path
 from pytest_bdd import given, when, then, parsers
+from pages.base_page import BasePage
 from pages.home_page import HomePage
 from utils.validation_helpers import detect_area_from_feature_path
 import logging
@@ -324,29 +325,15 @@ def wait_for_page_load(browser_session, bdd_context):
     """
     try:
         page = browser_session.page
+        base_page = BasePage(page)
         tracker = bdd_context.get("tracker")
         baseline = bdd_context.store.get("_module_exposure_count_after_section_click")
-        if tracker is not None and baseline is not None:
-            deadline = time.monotonic() + _MODULE_EXPOSURE_WAIT_TIMEOUT_S
-            while time.monotonic() < deadline:
-                current = len(tracker.get_logs("Module Exposure"))
-                if current > baseline:
-                    logger.info(
-                        "섹션 전환 후 Module Exposure 수신: %d건 → %d건",
-                        baseline,
-                        current,
-                    )
-                    break
-                page.wait_for_timeout(_MODULE_EXPOSURE_POLL_MS)
-            else:
-                logger.warning(
-                    "섹션 전환 후 %.0fs 안에 Module Exposure가 추가되지 않았습니다(기준 %d건). "
-                    "해당 탭이 General/Product Exposure만 쏘거나, 노출이 스크롤 이후일 수 있습니다.",
-                    _MODULE_EXPOSURE_WAIT_TIMEOUT_S,
-                    baseline,
-                )
-        else:
-            time.sleep(1)
+        base_page.wait_for_module_exposure_increase(
+            tracker=tracker,
+            baseline_count=baseline,
+            timeout_s=_MODULE_EXPOSURE_WAIT_TIMEOUT_S,
+            poll_ms=_MODULE_EXPOSURE_POLL_MS,
+        )
         page.wait_for_load_state("domcontentloaded", timeout=10000)
     except Exception as e:
         logger.error('페이지 로딩 대기 실패: %s', e, exc_info=True)
@@ -401,40 +388,14 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
             raise AssertionError("상품 goodscode를 찾을 수 없습니다.")
 
         # 상품 클릭 전: 네트워크 트래킹이 있으면 goodscode 기준 Product Exposure 적재 확인
-        # - 이미 1건 이상이면 사전 노출로 간주하고 추가 대기 없음(건수 증가를 기다리면 대개 영원히 안 옴)
-        # - 0건이면 첫 적재(0→1 이상)까지 폴링
-        # (`get_product_exposure_logs_by_goodscode`는 호출마다 INFO 로그가 나와 폴링에는 `get_logs_by_goodscode` 사용)
         tracker = bdd_context.get("tracker")
-        page = browser_session.page
-        if tracker is not None:
-            baseline_pe = len(tracker.get_logs_by_goodscode(goodscode, "Product Exposure"))
-            if baseline_pe > 0:
-                logger.info(
-                    "상품 클릭 전 Product Exposure가 이미 적재됨 (goodscode=%s, %d건). 사전 노출 — 추가 대기 생략",
-                    goodscode,
-                    baseline_pe,
-                )
-            else:
-                deadline = time.monotonic() + _PRODUCT_EXPOSURE_WAIT_TIMEOUT_S
-                while time.monotonic() < deadline:
-                    current_pe = len(tracker.get_logs_by_goodscode(goodscode, "Product Exposure"))
-                    if current_pe > baseline_pe:
-                        logger.info(
-                            "상품 클릭 전 Product Exposure 수신 (goodscode=%s): %d건 → %d건",
-                            goodscode,
-                            baseline_pe,
-                            current_pe,
-                        )
-                        break
-                    page.wait_for_timeout(_PRODUCT_EXPOSURE_POLL_MS)
-                else:
-                    logger.warning(
-                        "상품 클릭 전 %.0fs 안에 goodscode=%s에 대한 Product Exposure가 수신되지 않았습니다(기준 %d건). "
-                        "트래킹 지연·미발화일 수 있습니다.",
-                        _PRODUCT_EXPOSURE_WAIT_TIMEOUT_S,
-                        goodscode,
-                        baseline_pe,
-                    )
+        base_page = BasePage(browser_session.page)
+        base_page.wait_for_product_exposure_by_goodscode(
+            tracker=tracker,
+            goodscode=goodscode,
+            timeout_s=_PRODUCT_EXPOSURE_WAIT_TIMEOUT_S,
+            poll_ms=_PRODUCT_EXPOSURE_POLL_MS,
+        )
 
         # 홈 영역에서는 광고 여부를 기본값 N으로 저장
         bdd_context.store["goodscode"] = goodscode

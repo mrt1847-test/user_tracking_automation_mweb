@@ -3,7 +3,7 @@ Base Page Object 클래스
 모든 Page Object의 기본이 되는 클래스
 """
 from playwright.sync_api import Page, Locator, expect
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import unquote, parse_qs, urlparse
 import logging
 import time
@@ -113,6 +113,105 @@ class BasePage:
         timeout = timeout or self.timeout
         logger.debug(f"URL 대기: {url_pattern}")
         self.page.wait_for_url(url_pattern, timeout=timeout)
+
+    def wait_for_module_exposure_increase(
+        self,
+        tracker: Any,
+        baseline_count: Optional[int],
+        timeout_s: float = 15.0,
+        poll_ms: int = 250,
+    ) -> bool:
+        """
+        섹션 전환 직후 Module Exposure 로그 건수가 baseline 대비 증가할 때까지 대기한다.
+
+        Args:
+            tracker: NetworkTracker 객체(또는 get_logs를 제공하는 객체)
+            baseline_count: 기준 Module Exposure 건수
+            timeout_s: 최대 대기 시간(초)
+            poll_ms: 폴링 간격(ms)
+
+        Returns:
+            증가를 감지하면 True, 미감지면 False
+        """
+        if tracker is None or baseline_count is None:
+            time.sleep(1)
+            return False
+
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            current = len(tracker.get_logs("Module Exposure"))
+            if current > baseline_count:
+                logger.info(
+                    "섹션 전환 후 Module Exposure 수신: %d건 → %d건",
+                    baseline_count,
+                    current,
+                )
+                return True
+            self.page.wait_for_timeout(poll_ms)
+
+        logger.warning(
+            "섹션 전환 후 %.0fs 안에 Module Exposure가 추가되지 않았습니다(기준 %d건). "
+            "해당 탭이 General/Product Exposure만 쏘거나, 노출이 스크롤 이후일 수 있습니다.",
+            timeout_s,
+            baseline_count,
+        )
+        return False
+
+    def wait_for_product_exposure_by_goodscode(
+        self,
+        tracker: Any,
+        goodscode: str,
+        timeout_s: float = 15.0,
+        poll_ms: int = 250,
+    ) -> bool:
+        """
+        상품 클릭 전에 goodscode 기준 Product Exposure 적재를 확인한다.
+
+        - 이미 1건 이상이면 사전 노출로 간주하고 즉시 통과
+        - 0건이면 timeout 내 첫 적재(0→1 이상)까지 폴링
+
+        Args:
+            tracker: NetworkTracker 객체(또는 get_logs_by_goodscode를 제공하는 객체)
+            goodscode: 상품 코드
+            timeout_s: 최대 대기 시간(초)
+            poll_ms: 폴링 간격(ms)
+
+        Returns:
+            이미 적재되어 있었거나 대기 중 수신되면 True, 미수신이면 False
+        """
+        if tracker is None:
+            return False
+
+        baseline_pe = len(tracker.get_logs_by_goodscode(goodscode, "Product Exposure"))
+        if baseline_pe > 0:
+            logger.info(
+                "상품 클릭 전 Product Exposure가 이미 적재됨 (goodscode=%s, %d건). 사전 노출 — 추가 대기 생략",
+                goodscode,
+                baseline_pe,
+            )
+            return True
+
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            current_pe = len(tracker.get_logs_by_goodscode(goodscode, "Product Exposure"))
+            if current_pe > baseline_pe:
+                logger.info(
+                    "상품 클릭 전 Product Exposure 수신 (goodscode=%s): %d건 → %d건",
+                    goodscode,
+                    baseline_pe,
+                    current_pe,
+                )
+                return True
+            self.page.wait_for_timeout(poll_ms)
+
+        logger.warning(
+            "상품 클릭 전 %.0fs 안에 goodscode=%s에 대한 Product Exposure가 수신되지 않았습니다(기준 %d건). "
+            "트래킹 지연·미발화일 수 있습니다.",
+            timeout_s,
+            goodscode,
+            baseline_pe,
+        )
+        return False
     
     def is_visible(self, selector: str, timeout: Optional[int] = None) -> bool:
         """
