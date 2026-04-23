@@ -324,3 +324,111 @@ class HomePage(BasePage):
             f"[data-spm='{spmc}']",
             target_index=nth_index,
         )
+
+    def log_module_visibility_diagnostics(
+        self, spmc: str, target_index: int = 0
+    ) -> dict:
+        """
+        Playwright에서만 모듈/썸네일이 안 보이는 등 원인 조사용 로그.
+
+        ``find_module_by_spmc`` 와 동일한 1·2단계 매칭으로 대상 locator 를 고른 뒤,
+        카운트·visibility·첫 ``img.image__thumbnail``·모듈 루트의 style/rect/outerHTML 일부를 남긴다.
+
+        Args:
+            spmc: ``data-spm`` 식별값 (예: today_shortsdeal).
+            target_index: 0-based 인덱스.
+
+        Returns:
+            수집한 진단 dict (로거에도 INFO 로 덤프).
+        """
+        nth_index = max(int(target_index), 0)
+        by_text = self.page.locator("[data-spm]", has_text=spmc)
+        by_attr = self.page.locator(f"[data-spm='{spmc}']")
+        text_count = by_text.count()
+        attr_count = by_attr.count()
+
+        if text_count > nth_index:
+            module = by_text.nth(nth_index)
+            match_mode = "data-spm+has_text"
+        elif attr_count > nth_index:
+            module = by_attr.nth(nth_index)
+            match_mode = "data-spm=attr"
+        else:
+            module = by_attr.nth(nth_index)
+            match_mode = "fallback_attr_nth"
+
+        out: dict = {
+            "spmc": spmc,
+            "target_index": nth_index,
+            "match_mode": match_mode,
+            "by_text_count": text_count,
+            "by_attr_count": attr_count,
+        }
+
+        mod_count = module.count()
+        out["module_count"] = mod_count
+
+        module_visible = False
+        if mod_count > 0:
+            try:
+                module_visible = module.first.is_visible()
+            except Exception as e:
+                out["module_visible_error"] = repr(e)
+        out["module_visible"] = module_visible
+
+        if mod_count == 0:
+            logger.info(
+                "모듈 visibility 진단: DOM 매칭 0건 — %s",
+                out,
+            )
+            return out
+
+        root = module.first
+        img = root.locator("img.image__thumbnail").first
+        if img.count() > 0:
+            try:
+                out["thumbnail"] = img.evaluate(
+                    """(el) => {
+                        const cs = getComputedStyle(el);
+                        const rect = el.getBoundingClientRect();
+                        return {
+                            src: el.src,
+                            currentSrc: el.currentSrc,
+                            complete: el.complete,
+                            naturalWidth: el.naturalWidth,
+                            naturalHeight: el.naturalHeight,
+                            loading: el.loading,
+                            decoding: el.decoding,
+                            display: cs.display,
+                            visibility: cs.visibility,
+                            opacity: cs.opacity,
+                            width: rect.width,
+                            height: rect.height,
+                        };
+                    }"""
+                )
+            except Exception as e:
+                out["thumbnail_eval_error"] = repr(e)
+        else:
+            out["thumbnail"] = None
+
+        try:
+            out["module_root"] = root.evaluate(
+                """(el) => {
+                    const cs = getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    return {
+                        display: cs.display,
+                        visibility: cs.visibility,
+                        opacity: cs.opacity,
+                        width: rect.width,
+                        height: rect.height,
+                        html: el.outerHTML.slice(0, 500),
+                    };
+                }"""
+            )
+        except Exception as e:
+            out["module_root_eval_error"] = repr(e)
+
+        logger.info("모듈 visibility 진단: %s", out)
+        return out

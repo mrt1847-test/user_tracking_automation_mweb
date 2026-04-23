@@ -75,7 +75,9 @@ user_tracking_automation_mweb/
 │       └── ...
 ├── test/                             # pytest feature 로더 (환경별)
 │   ├── dev/                          # dev feature 실행 엔트리
-│   │   └── test_jfy.py
+│   │   ├── test_jfy.py
+│   │   ├── test_kotlin.py
+│   │   └── test_gemini.py
 │   └── prod/
 │       ├── test_srp.py
 │       ├── test_lp.py
@@ -187,6 +189,9 @@ pytest test/prod/test_pdp.py -v
 
 # 로그 레벨 설정
 pytest test/prod/ -v --log-cli-level=INFO
+
+# 실행 결과를 화면과 파일에 동시에 저장 (Linux, macOS, Git Bash 등)
+pytest test/prod/ -v 2>&1 | tee pytest.log
 ```
 
 #### pipenv 사용
@@ -200,6 +205,18 @@ pipenv run pytest test/prod/ -v
 pipenv run pytest test/dev/test_jfy.py -v
 ```
 
+실행 결과를 **터미널과 동시에 로그 파일**에 남기려면 테스트 경로·파일명만 바꿔서 쓰면 됩니다.
+
+```bash
+# Linux, macOS, Git Bash 등 (`tee`: 화면 + 파일)
+pipenv run pytest test/prod/ -v 2>&1 | tee pytest.log
+```
+
+```powershell
+# Windows PowerShell (`Tee-Object`: 화면 + 파일, `*>&1` 로 stdout/stderr 모두 전달)
+pipenv run pytest test/prod/ -v *>&1 | Tee-Object -FilePath pytest.log
+```
+
 ## ⚙️ 설정 파일
 
 ### config.json
@@ -208,6 +225,7 @@ pipenv run pytest test/dev/test_jfy.py -v
 
 **주요 키:**
 - `environment`: 실행 환경 (`"dev"` | `"stg"` | `"prod"`) — `utils/urls.py`에서 해당 환경 URL 사용
+- `mobile_profile`: (선택) Playwright 모바일 에뮬레이션. `"iphone"`(기본) 또는 `"galaxy_s20"`(갤럭시 S20 이상·Android Chrome mweb). 생략 시 `iphone`
 - `driver`: 브라우저 (예: `"Chrome"`)
 - `match_rate`: 검증 시 허용 매칭률 (예: `0.88`)
 - `testrail_report`: TestRail 보고 여부 (예: `"Y"` / `"N"`)
@@ -220,6 +238,7 @@ pipenv run pytest test/dev/test_jfy.py -v
 ```json
 {
   "environment": "dev",
+  "mobile_profile": "iphone",
   "driver": "Chrome",
   "match_rate": 0.88,
   "testrail_report": "N",
@@ -434,7 +453,7 @@ TestRail 연동을 위해서는 `config.json`에 TestRail 설정이 필요합니
 
 ### 주요 기능
 
-1. **JSON → Google Sheets**: tracking_all JSON 파일을 Google Sheets로 변환하여 편집 가능한 형태로 제공
+1. **JSON → Google Sheets**: `tracking_schemas/schema_template.json`에 정의된 **경로(트리)만** 시트에 쓰고, 각 셀 값은 `tracking_all` 로그에서 역으로 채운다 (`scripts/json_to_sheets.py`).
 2. **Google Sheets → JSON**: Google Sheets에서 편집한 데이터를 트래킹 스키마(tracking_schemas) JSON 파일로 변환
 
 ### 사용 방법
@@ -443,7 +462,13 @@ TestRail 연동을 위해서는 `config.json`에 TestRail 설정이 필요합니
 # JSON → Google Sheets
 python scripts/json_to_sheets.py \
   --input json/tracking_all_먼저_둘러보세요.json \
-  --module "먼저 둘러보세요"
+  --module "먼저 둘러보세요" \
+  --area SRP
+
+# 파일명이 tracking_all_<모듈>(선택적 (숫자)).json 이면 --module 생략 가능
+python scripts/json_to_sheets.py \
+  --input json/tracking_all_today_branddeal(1).json \
+  --area KOTLIN
 
 # Google Sheets → JSON
 python scripts/sheets_to_json.py \

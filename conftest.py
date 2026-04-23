@@ -18,6 +18,7 @@ import re
 # from src.gtas_python_core_v2.gtas_python_core_vault_v2 import Vault
 from playwright.sync_api import sync_playwright, Browser, BrowserContext, Page
 import os
+import sys
 import pytest
 import requests
 from datetime import datetime
@@ -25,6 +26,7 @@ from pathlib import Path
 import json
 import time
 import logging
+from typing import Any, Dict, FrozenSet, Iterable, Optional
 from dotenv import load_dotenv  # type: ignore
 
 # .env 파일 로드 (프로젝트 루트 기준)
@@ -176,18 +178,13 @@ def pw():
 @pytest.fixture(scope="session")
 def browser(pw):
     """세션 단위 브라우저"""
-    browser = pw.chromium.launch(headless=False)
+    browser = pw.chromium.launch(channel="chrome", headless=False)
     yield browser
     browser.close()
 # ------------------------
 # :셋: Context fixture (각 시나리오마다 독립적으로 생성) — 모바일 환경
 # ------------------------
-# 모바일 뷰포트 (iPhone 12/13 기준)
-MOBILE_VIEWPORT = {"width": 390, "height": 844}
-MOBILE_USER_AGENT = (
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
-    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
-)
+# 뷰포트·UA는 config.json의 mobile_profile로 선택 (_get_mobile_emulation, app_config 로드 이후 정의)
 
 
 @pytest.fixture(scope="function")
@@ -196,13 +193,17 @@ def context(browser, ensure_login_state):
     브라우저 컨텍스트 fixture (모바일 뷰포트)
     각 시나리오마다 독립적으로 생성되고 종료 시 정리됩니다.
     """
+    viewport, user_agent = _get_mobile_emulation()
     ctx = browser.new_context(
         storage_state=ensure_login_state,
-        viewport=MOBILE_VIEWPORT,
-        user_agent=MOBILE_USER_AGENT,
+        viewport=viewport,
+        screen=viewport,              # 추가
+        user_agent=user_agent,
         is_mobile=True,
         has_touch=True,
-        device_scale_factor=1,
+        device_scale_factor=3,        # 1 -> 실제 모바일에 가까운 값으로 비교
+        locale="ko-KR",
+        timezone_id="Asia/Seoul",
     )
     yield ctx
     ctx.close()
@@ -240,9 +241,10 @@ def create_login_state(pw):
     password = credentials["password"]
     
     browser = pw.chromium.launch(headless=False)  # 화면 확인용
+    viewport, user_agent = _get_mobile_emulation()
     context = browser.new_context(
-        viewport=MOBILE_VIEWPORT,
-        user_agent=MOBILE_USER_AGENT,
+        viewport=viewport,
+        user_agent=user_agent,
         is_mobile=True,
         has_touch=True,
         device_scale_factor=1,
@@ -792,46 +794,248 @@ def pytest_bdd_after_step(request, feature, scenario, step, step_func, step_func
 JSON_DIR = Path(__file__).parent / "json"  # json 폴더 내의 JSON 파일 전부 대상
 
 
-# Config 파일 로딩
-config = {}
+# Config 파일 로딩 (상위 키 = TestRail 등 폴백; 스위트별 오버레이는 config.json 메타 키로 정의)
+_TESTRAIL_CONFIG_META_KEYS = frozenset(
+    {"testrail_suite_blocks", "testrail_paths_to_suite", "testrail_overlay_keys"}
+)
+# 스위트 블록으로 오인하지 않을 일반 최상위 키(값이 dict가 아니거나, dict여도 스위트가 아님)
+_TESTRAIL_NON_SUITE_TOP_KEYS = frozenset(
+    {
+        "tr_url",
+        "environment",
+        "mobile_profile",
+        "spreadsheet_id",
+        "testrail_report",
+        "testrail_run_name",
+        "testrail_close_run_on_finish",
+        "multiple_test_use",
+        "milestone_id",
+        "project_id",
+        "section_id",
+        "suite_id",
+    }
+)
+
+
+def _shape_inferred_suite_block_names(raw: Dict[str, Any]) -> list[str]:
+    """testrail_suite_blocks·testrail_paths_to_suite가 없을 때, 오버레이 ID가 들어 있는 최상위 dict 키를 스위트 블록으로 본다."""
+    overlay = set(_testrail_overlay_keys(raw))
+    names: list[str] = []
+    for k, v in raw.items():
+        if k in _TESTRAIL_CONFIG_META_KEYS or k in _TESTRAIL_NON_SUITE_TOP_KEYS:
+            continue
+        if isinstance(v, dict) and (overlay & v.keys()):
+            names.append(str(k))
+    return sorted(names)
+
+
+def _suite_block_keys(raw: Dict[str, Any]) -> FrozenSet[str]:
+    """오버레이용으로 app_config에서 제거할 최상위 키.
+    - testrail_suite_blocks가 있으면 그 목록만.
+    - 없고 testrail_paths_to_suite(구 방식) 객체가 있으면 값 중 raw에 dict인 스위트 이름.
+    - 둘 다 없으면 형태 추론(_shape_inferred_suite_block_names).
+    """
+    spec = raw.get("testrail_suite_blocks")
+    if spec is not None:
+        if isinstance(spec, dict):
+            return frozenset(str(k) for k in spec)
+        if isinstance(spec, (list, tuple, set)):
+            return frozenset(str(x) for x in spec)
+        raise RuntimeError("config.json의 testrail_suite_blocks는 문자열 배열이거나 객체여야 합니다.")
+    legacy = raw.get("testrail_paths_to_suite")
+    if isinstance(legacy, dict) and legacy:
+        return frozenset(
+            str(v) for v in legacy.values() if isinstance(raw.get(str(v)), dict)
+        )
+    return frozenset(_shape_inferred_suite_block_names(raw))
+
+
+def _paths_to_suite_rules(raw: Dict[str, Any]) -> list[tuple[str, str]]:
+    """(경로 부분문자열 소문자, 스위트블록이름) 목록, 긴 marker 우선.
+    - 구 방식: testrail_paths_to_suite 가 비어 있지 않은 객체 → 그대로 사용.
+    - 기본: 각 스위트 블록에 path_markers가 있으면 사용, 없으면 test_<블록이름> 한 개.
+    """
+    legacy = raw.get("testrail_paths_to_suite")
+    if isinstance(legacy, dict) and legacy:
+        pairs = [(str(k), str(v)) for k, v in legacy.items()]
+    else:
+        pairs = []
+        for suite_key in sorted(_suite_block_keys(raw)):
+            block = raw.get(suite_key)
+            if not isinstance(block, dict):
+                continue
+            markers = block.get("path_markers")
+            if markers is None:
+                mlist = [f"test_{suite_key}"]
+            elif isinstance(markers, str):
+                mlist = [markers]
+            elif isinstance(markers, (list, tuple)):
+                mlist = [str(x) for x in markers]
+            else:
+                raise RuntimeError(
+                    f"config.json의 '{suite_key}.path_markers'는 문자열 또는 문자열 배열이어야 합니다."
+                )
+            for m in mlist:
+                pairs.append((m, str(suite_key)))
+    out = [(m.replace("\\", "/").lower(), sk) for m, sk in pairs]
+    out.sort(key=lambda x: -len(x[0]))
+    return out
+
+
+def _testrail_overlay_keys(raw: Dict[str, Any]) -> tuple[str, ...]:
+    keys = raw.get("testrail_overlay_keys")
+    if keys is None:
+        return ("milestone_id", "project_id", "section_id", "suite_id")
+    if not isinstance(keys, (list, tuple)):
+        raise RuntimeError("config.json의 testrail_overlay_keys는 문자열 배열이어야 합니다.")
+    return tuple(str(x) for x in keys)
+
+
+def _infer_testrail_suite_key_from_paths(
+    paths: Iterable[Any], raw: Dict[str, Any]
+) -> Optional[str]:
+    """경로 규칙으로 스위트 추론(구 testrail_paths_to_suite 또는 test_<블록명>/path_markers). 매칭 스위트가 정확히 하나일 때만 반환."""
+    pairs = _paths_to_suite_rules(raw)
+    if not pairs:
+        return None
+    seen: list[str] = []
+    for p in paths:
+        if not isinstance(p, str):
+            continue
+        norm = p.replace("\\", "/").lower()
+        for marker, suite_key in pairs:
+            if marker in norm and suite_key not in seen:
+                seen.append(suite_key)
+    if len(seen) == 1:
+        return seen[0]
+    return None
+
+
+def _build_effective_config(raw: Dict[str, Any], suite_key: Optional[str]) -> Dict[str, Any]:
+    block_keys = _suite_block_keys(raw)
+    overlay_keys = _testrail_overlay_keys(raw)
+    out = {
+        k: v
+        for k, v in raw.items()
+        if k not in block_keys and k not in _TESTRAIL_CONFIG_META_KEYS
+    }
+    block = raw.get(suite_key) if suite_key else None
+    if isinstance(block, dict):
+        for rk in overlay_keys:
+            val = block.get(rk)
+            if val is not None and str(val).strip() != "":
+                out[rk] = val
+    return out
+
+
+_raw_config: Dict[str, Any] = {}
 try:
-    with open('config.json', 'r', encoding='utf-8') as config_file:
-        config = json.load(config_file)
+    with open("config.json", "r", encoding="utf-8") as config_file:
+        _raw_config = json.load(config_file)
 except FileNotFoundError:
     raise RuntimeError("config.json 파일을 찾을 수 없습니다.")
 except json.JSONDecodeError as e:
     raise RuntimeError(f"config.json 파일의 JSON 형식이 잘못되었습니다: {e}")
 
-# TestRail 기록: testrail_report가 Y일 때만 Run 생성·결과 기록
-TESTRAIL_REPORT_ENABLED = (config.get("testrail_report") or "N").strip().upper() == "Y"
-# Run 이름: {datetime} → 실행 시각(YYYY-MM-DD HH:MM:SS)
-TESTRAIL_RUN_NAME = (
-    (config.get("testrail_run_name") or "GUT Automation test mweb {datetime}").strip()
-)
-# 세션 종료 시 TestRail Run close (testrail_report가 Y일 때만 의미 있음, Y/N)
-TESTRAIL_CLOSE_RUN_ON_FINISH = (
-    (config.get("testrail_close_run_on_finish") or "Y").strip().upper() == "Y"
+app_config = _build_effective_config(
+    _raw_config, _infer_testrail_suite_key_from_paths(sys.argv, _raw_config)
 )
 
-if TESTRAIL_REPORT_ENABLED:
-    try:
-        TESTRAIL_BASE_URL = config['tr_url']
-        TESTRAIL_PROJECT_ID = config['project_id']
-        TESTRAIL_SUITE_ID = config['suite_id']
-        TESTRAIL_SECTION_ID = config['section_id']
-        TESTRAIL_MILESTONE_ID = config['milestone_id']
-    except KeyError as e:
-        raise RuntimeError(f"config.json에 필수 키 '{e}'가 없습니다.")
-    try:
-        TESTRAIL_USER = os.getenv("TESTRAIL_USERNAME")
-        TESTRAIL_TOKEN = os.getenv("TESTRAIL_PASSWORD")
-        if not TESTRAIL_USER or not TESTRAIL_TOKEN:
-            raise RuntimeError("TestRail 인증 정보(username 또는 password)가 없습니다. .env 파일에 TESTRAIL_USERNAME과 TESTRAIL_PASSWORD를 설정해주세요.")
-    except Exception as e:
-        raise RuntimeError(f"TestRail 인증 정보를 가져오는 중 오류 발생: {e}")
-else:
-    TESTRAIL_BASE_URL = TESTRAIL_PROJECT_ID = TESTRAIL_SUITE_ID = TESTRAIL_SECTION_ID = TESTRAIL_MILESTONE_ID = None
-    TESTRAIL_USER = TESTRAIL_TOKEN = None
+# 모바일 에뮬레이션 — config.json 키: mobile_profile (없으면 iphone)
+#   iphone       : iPhone 12/13 계열 Safari UA (기존 기본)
+#   galaxy_s20   : 갤럭시 S20 이상(Android Chrome mweb) 뷰포트·UA
+MOBILE_PROFILES = {
+    "iphone": {
+        "label": "iPhone 12/13 class (Safari)",
+        "viewport": {"width": 390, "height": 844},
+        "user_agent": (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+        ),
+    },
+    "galaxy_s20": {
+        "label": "Galaxy S20+ class (Android Chrome)",
+        "viewport": {"width": 360, "height": 800},
+        "user_agent": (
+            "Mozilla/5.0 (Linux; Android 14; SM-G981N) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+        ),
+    },
+}
+
+
+def _get_mobile_emulation():
+    """config.json의 mobile_profile에 따라 뷰포트·User-Agent 반환."""
+    raw = (app_config.get("mobile_profile") or "iphone").strip().lower()
+    profile = MOBILE_PROFILES.get(raw)
+    if profile is None:
+        logger.warning(
+            "config.json의 mobile_profile=%r은 지원하지 않습니다. 지원 값: %s — iphone으로 대체합니다.",
+            raw,
+            ", ".join(sorted(MOBILE_PROFILES)),
+        )
+        profile = MOBILE_PROFILES["iphone"]
+        raw = "iphone"
+    logger.info("모바일 에뮬레이션: %s (%s)", raw, profile["label"])
+    return profile["viewport"], profile["user_agent"]
+
+
+def _refresh_testrail_globals() -> None:
+    """app_config(config.json 병합본) 기준으로 TestRail 관련 모듈 전역을 다시 설정한다."""
+    global TESTRAIL_REPORT_ENABLED, TESTRAIL_RUN_NAME, TESTRAIL_CLOSE_RUN_ON_FINISH
+    global TESTRAIL_BASE_URL, TESTRAIL_PROJECT_ID, TESTRAIL_SUITE_ID, TESTRAIL_SECTION_ID, TESTRAIL_MILESTONE_ID
+    global TESTRAIL_USER, TESTRAIL_TOKEN
+
+    TESTRAIL_REPORT_ENABLED = (app_config.get("testrail_report") or "N").strip().upper() == "Y"
+    TESTRAIL_RUN_NAME = (
+        (app_config.get("testrail_run_name") or "GUT Automation test mweb {datetime}").strip()
+    )
+    TESTRAIL_CLOSE_RUN_ON_FINISH = (
+        (app_config.get("testrail_close_run_on_finish") or "Y").strip().upper() == "Y"
+    )
+
+    if TESTRAIL_REPORT_ENABLED:
+        try:
+            TESTRAIL_BASE_URL = app_config["tr_url"]
+            TESTRAIL_PROJECT_ID = app_config["project_id"]
+            TESTRAIL_SUITE_ID = app_config["suite_id"]
+            TESTRAIL_SECTION_ID = app_config["section_id"]
+            TESTRAIL_MILESTONE_ID = app_config["milestone_id"]
+        except KeyError as e:
+            raise RuntimeError(f"config.json에 필수 키 '{e}'가 없습니다.")
+        try:
+            TESTRAIL_USER = os.getenv("TESTRAIL_USERNAME")
+            TESTRAIL_TOKEN = os.getenv("TESTRAIL_PASSWORD")
+            if not TESTRAIL_USER or not TESTRAIL_TOKEN:
+                raise RuntimeError(
+                    "TestRail 인증 정보(username 또는 password)가 없습니다. .env 파일에 TESTRAIL_USERNAME과 TESTRAIL_PASSWORD를 설정해주세요."
+                )
+        except Exception as e:
+            raise RuntimeError(f"TestRail 인증 정보를 가져오는 중 오류 발생: {e}")
+    else:
+        TESTRAIL_BASE_URL = (
+            TESTRAIL_PROJECT_ID
+        ) = TESTRAIL_SUITE_ID = TESTRAIL_SECTION_ID = TESTRAIL_MILESTONE_ID = None
+        TESTRAIL_USER = TESTRAIL_TOKEN = None
+
+
+_refresh_testrail_globals()
+
+
+def pytest_configure(config):
+    """최종 수집 인자 기준으로 스위트 키를 다시 맞추고 TestRail 전역을 동기화한다."""
+    global app_config
+    suite_key = _infer_testrail_suite_key_from_paths(config.args, _raw_config)
+    app_config = _build_effective_config(_raw_config, suite_key)
+    _refresh_testrail_globals()
+    if suite_key:
+        logger.info("TestRail: '%s' 스위트 블록 오버레이 적용", suite_key)
+    else:
+        logger.debug(
+            "TestRail: 상위 config만 사용 (경로 미매칭, 복수 스위트 동시 실행, 또는 스위트 블록 없음)"
+        )
+
+
 testrail_run_id = None
 case_id_map = {}  # {섹션 이름: [케이스ID 리스트]}
 test_logs = {}  # {nodeid: 로그 문자열} - 테스트별 로그 저장

@@ -2,16 +2,26 @@
 홈페이지 관련 Step Definitions
 진입 / 초기 상태
 """
+import os
 from pathlib import Path
 from pytest_bdd import given, when, then, parsers
 from pages.home_page import HomePage
 from utils.validation_helpers import detect_area_from_feature_path
 import logging
 import pytest
+import time
 # 프론트 실패 처리 헬퍼 함수 import
 from utils.frontend_helpers import record_frontend_failure
 
 logger = logging.getLogger(__name__)
+
+# 홈 섹션 탭 전환 후 Module Exposure 수신 대기 (페이지 로딩 대기 스텝)
+_MODULE_EXPOSURE_WAIT_TIMEOUT_S = 15.0
+_MODULE_EXPOSURE_POLL_MS = 250
+
+# 홈 모듈 상품 클릭 전 Product Exposure 수신 대기 (goodscode만 매칭, SPM 미사용)
+_PRODUCT_EXPOSURE_WAIT_TIMEOUT_S = 15.0
+_PRODUCT_EXPOSURE_POLL_MS = 250
 
 
 @given("사용자가 G마켓 홈페이지에 접속한다")
@@ -213,18 +223,44 @@ def click_recently_viewed_product(browser_session, bdd_context):
         if "goodscode" in locals() and goodscode:
             bdd_context.store["goodscode"] = goodscode
 
+def _home_module_diag_mode() -> str | None:
+    """
+    ``PLAYWRIGHT_HOME_MODULE_DIAG`` — 모듈 노출 진단 로그.
+
+    - 비움: 끔
+    - ``on_error`` / ``fail``: ``find_module_by_spmc`` 예외 시에만
+    - ``1`` / ``true`` / ``always`` / ``yes`` / ``y``: 성공·실패 모두(실패 시에도 출력)
+    """
+    v = (os.environ.get("PLAYWRIGHT_HOME_MODULE_DIAG") or "").strip().lower()
+    if not v:
+        return None
+    if v in ("on_error", "fail", "failure", "error"):
+        return "on_error"
+    if v in ("1", "true", "yes", "always", "y", "all"):
+        return "always"
+    return None
+
+
 @given(parsers.parse('섹션에 "{n:d}"번째 "{module_title}" 모듈이 있다'))
 def section_module_exists(browser_session, n, module_title, bdd_context):
     """
     섹션에 n번째 module_title 모듈이 있는지 확인한다.
     (Examples의 n은 1-based — find_module_by_spmc 두 번째 인자는 0-based 인덱스)
     """
+    idx0 = max(int(n) - 1, 0)
     try:
         home_page = HomePage(browser_session.page)
-        home_page.find_module_by_spmc(module_title, max(int(n) - 1, 0))
+        home_page.find_module_by_spmc(module_title, idx0)
         logger.info('섹션에 "%s"번째 "%s" 모듈이 있는지 확인됨', n, module_title)
+        if _home_module_diag_mode() == "always":
+            home_page.log_module_visibility_diagnostics(module_title, idx0)
     except Exception as e:
         logger.error('섹션에 "%s"번째 "%s" 모듈이 있는지 확인 실패: %s', n, module_title, e, exc_info=True)
+        if _home_module_diag_mode() in ("always", "on_error"):
+            try:
+                HomePage(browser_session.page).log_module_visibility_diagnostics(module_title, idx0)
+            except Exception as diag_e:
+                logger.warning("모듈 visibility 진단 로그 실패: %s", diag_e, exc_info=True)
         record_frontend_failure(
             browser_session,
             bdd_context,
@@ -242,6 +278,11 @@ def navigate_to_section(browser_session, section_name, bdd_context):
         home_page = HomePage(browser_session.page)
         home_page.close_popup()
         home_page.click_home_section_tab(section_name)
+        tracker = bdd_context.get("tracker")
+        if tracker:
+            bdd_context.store["_module_exposure_count_after_section_click"] = len(
+                tracker.get_logs("Module Exposure")
+            )
         logger.info('사용자가 "%s" 섹션으로 이동했습니다.', section_name)
     except Exception as e:
         logger.error('사용자가 "%s" 섹션으로 이동 실패: %s', section_name, e, exc_info=True)
@@ -260,6 +301,7 @@ def section_is_navigated(browser_session, section_name, bdd_context):
     try:
         home_page = HomePage(browser_session.page)
         home_page.expect_home_section_tab_active(section_name)
+        bdd_context.store["module_title"] = section_name
         logger.info('"%s" 섹션으로 이동했습니다.', section_name)
     except Exception as e:
         logger.error('"%s" 섹션으로 이동 실패: %s', section_name, e, exc_info=True)
@@ -269,6 +311,45 @@ def section_is_navigated(browser_session, section_name, bdd_context):
             f'"{section_name}" 섹션으로 이동 실패: {e}',
             '"<section_name>" 섹션으로 이동한다',
         )
+
+@then(parsers.parse('페이지 로딩 대기'))
+def wait_for_page_load(browser_session, bdd_context):
+    """
+    섹션 전환 직후 트래킹 등 비동기 요청을 기다린다.
+
+    SPA 탭 전환에서는 ``domcontentloaded``가 이미 만족된 상태라 거의 즉시 통과하므로,
+    ``time.sleep``만으로는 Module.Exposure.Event가 늦게 나오는 경우를 못 잡을 수 있다.
+    네트워크 트래킹이 켜져 있으면 섹션 탭 클릭 직후 건수를 기준으로 Module Exposure 로그가
+    늘어날 때까지 짧게 폴링한다.
+    """
+    try:
+        page = browser_session.page
+        tracker = bdd_context.get("tracker")
+        baseline = bdd_context.store.get("_module_exposure_count_after_section_click")
+        if tracker is not None and baseline is not None:
+            deadline = time.monotonic() + _MODULE_EXPOSURE_WAIT_TIMEOUT_S
+            while time.monotonic() < deadline:
+                current = len(tracker.get_logs("Module Exposure"))
+                if current > baseline:
+                    logger.info(
+                        "섹션 전환 후 Module Exposure 수신: %d건 → %d건",
+                        baseline,
+                        current,
+                    )
+                    break
+                page.wait_for_timeout(_MODULE_EXPOSURE_POLL_MS)
+            else:
+                logger.warning(
+                    "섹션 전환 후 %.0fs 안에 Module Exposure가 추가되지 않았습니다(기준 %d건). "
+                    "해당 탭이 General/Product Exposure만 쏘거나, 노출이 스크롤 이후일 수 있습니다.",
+                    _MODULE_EXPOSURE_WAIT_TIMEOUT_S,
+                    baseline,
+                )
+        else:
+            time.sleep(1)
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+    except Exception as e:
+        logger.error('페이지 로딩 대기 실패: %s', e, exc_info=True)
 
 
 @when(parsers.parse('홈에서 사용자가 "{n:d}"번째 "{module_title}" 모듈 내 {nth:d}번째 상품을 확인하고 클릭한다'))
@@ -318,6 +399,42 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
         goodscode = home_page.get_product_code(product)
         if not goodscode:
             raise AssertionError("상품 goodscode를 찾을 수 없습니다.")
+
+        # 상품 클릭 전: 네트워크 트래킹이 있으면 goodscode 기준 Product Exposure 적재 확인
+        # - 이미 1건 이상이면 사전 노출로 간주하고 추가 대기 없음(건수 증가를 기다리면 대개 영원히 안 옴)
+        # - 0건이면 첫 적재(0→1 이상)까지 폴링
+        # (`get_product_exposure_logs_by_goodscode`는 호출마다 INFO 로그가 나와 폴링에는 `get_logs_by_goodscode` 사용)
+        tracker = bdd_context.get("tracker")
+        page = browser_session.page
+        if tracker is not None:
+            baseline_pe = len(tracker.get_logs_by_goodscode(goodscode, "Product Exposure"))
+            if baseline_pe > 0:
+                logger.info(
+                    "상품 클릭 전 Product Exposure가 이미 적재됨 (goodscode=%s, %d건). 사전 노출 — 추가 대기 생략",
+                    goodscode,
+                    baseline_pe,
+                )
+            else:
+                deadline = time.monotonic() + _PRODUCT_EXPOSURE_WAIT_TIMEOUT_S
+                while time.monotonic() < deadline:
+                    current_pe = len(tracker.get_logs_by_goodscode(goodscode, "Product Exposure"))
+                    if current_pe > baseline_pe:
+                        logger.info(
+                            "상품 클릭 전 Product Exposure 수신 (goodscode=%s): %d건 → %d건",
+                            goodscode,
+                            baseline_pe,
+                            current_pe,
+                        )
+                        break
+                    page.wait_for_timeout(_PRODUCT_EXPOSURE_POLL_MS)
+                else:
+                    logger.warning(
+                        "상품 클릭 전 %.0fs 안에 goodscode=%s에 대한 Product Exposure가 수신되지 않았습니다(기준 %d건). "
+                        "트래킹 지연·미발화일 수 있습니다.",
+                        _PRODUCT_EXPOSURE_WAIT_TIMEOUT_S,
+                        goodscode,
+                        baseline_pe,
+                    )
 
         # 홈 영역에서는 광고 여부를 기본값 N으로 저장
         bdd_context.store["goodscode"] = goodscode

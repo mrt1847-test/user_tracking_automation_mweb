@@ -16,12 +16,31 @@ Feature: G마켓 Home 트래킹 로그 정합성 검증
 
     Examples:
       | section_name  | n | module_title        | nth | tc_module_exposure | tc_product_exposure | tc_product_click | 
-      | 홈            | 1 | today_itemcarousel  | 1 | C1413652           | C1413653            | C1413654         | 
-      | 홈            | 1 | today_newlowest     | 1 | C1413645           | C1413646            | C1413647         | 
-      | 홈            | 1 | today_livedeal      | 1 | C1413606           | C1413607            | C1413608         | 
-      | 홈            | 1 | today_shortsdeal    | 1 | C1413652           | C1413653            | C1413654         | 
-      | 홈            | 1 | today_branddeal     | 1 | C1413645           | C1413646            | C1413647         | 
-      | 홈            | 1 | today_hmjfy0        | 1 | C1413606           | C1413607            | C1413608         | 
+      | 홈            | 1 | today_itemcarousel  | 1 | C1829145           | C1829146            | C1829147        | 
+      | 홈            | 1 | today_newlowest     | 1 | C1829139           | C1829140            | C1829141         | 
+      | 홈            | 1 | today_livedeal      | 1 | C1829151           | C1829152            | C1829153         | 
+      | 홈            | 1 | today_shortsdeal    | 1 | C1829154           | C1829155            | C1829156         | 
+      | 홈            | 1 | today_branddeal     | 1 | C1829142           | C1829143            | C1829144         | 
+      | 홈            | 1 | today_hmjfy0        | 1 | C1829136           | C1829137            | C1829138         |
+      | 홈            | 1 | today_campaign      | 1 | C1829148           | C1829149            | C1829150         | 
 
+  Scenario: 홈 섹션 이동시 module exposure 트래킹 로그 검증
+    Given 네트워크 트래킹이 시작되었음
+    Given G마켓 홈 페이지에 접속했음
+    When 사용자가 "<section_name>" 섹션으로 이동한다
+    Then "<module_title>" 섹션으로 이동했다
+    Then 페이지 로딩 대기
+    Then 모든 트래킹 로그를 JSON 파일로 저장함
+    Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: <tc_module_exposure>)
+
+    Examples:
+      | section_name  | module_title     | tc_module_exposure |
+      | 슈퍼딜         | 슈퍼딜            | 	C1829157          |
+      | 이마트몰       | 이마트몰           | C1829158           | 
+      | 베스트         | 베스트            | C1829159           | 
+      | 스타배송       | 스타배송           | C1829160           | 
+      | 뷰티           | 뷰티              | C1829161           |  
+
+  
   
   

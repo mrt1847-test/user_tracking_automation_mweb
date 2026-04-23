@@ -1,15 +1,26 @@
 {
-    "driver": "Chrome",
-    "match_rate": 0.88,
     "testrail_report": "Y",
     "testrail_run_name": "User Tracking Aoutomation Test-mweb {datetime}",
-    "testrail_close_run_on_finish": "N",
-    "milestone_id": "1671",
-    "project_id": "222",
-    "section_id": "111278",
-    "suite_id": "3588",
+    "testrail_close_run_on_finish": "Y",
+    "milestone_id": "",
+    "project_id": "",
+    "section_id": "",
+    "suite_id": "",
+    "kotlin": {
+        "milestone_id": "1673",
+        "project_id": "219",
+        "section_id": "111257",
+        "suite_id": "3582"
+    },
+    "gemini": {
+        "milestone_id": "1671",
+        "project_id": "222",
+        "section_id": "111278",
+        "suite_id": "3588"
+    },
     "tr_url": "http://172.30.2.20",
     "multiple_test_use": false,
     "environment": "prod",
+    "mobile_profile": "galaxy_s20",
     "spreadsheet_id": "1iv_ok0kTzWWPhzyRRbpEEnH3DPGE7VSJg2mmdlRPD78"
 }

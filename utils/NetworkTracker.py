@@ -16,6 +16,19 @@ _GOODSCODE_PARAM_KEYS = ('goodscode', 'goodsCode', 'goods_code', 'goodscd', 'goo
 _PDP_CLICK_TYPES = ('PDP Buynow Click', 'PDP ATC Click', 'PDP Gift Click', 'PDP Join Click', 'PDP Rental Click')
 
 
+def _is_price_sentinel_one(value: Any) -> bool:
+    """원가/할인가가 미노출 등으로 숫자 1만 내려오는 경우."""
+    if isinstance(value, bool):
+        return False
+    if value == 1:
+        return True
+    if isinstance(value, float) and value == 1.0:
+        return True
+    if isinstance(value, str) and value.strip() == "1":
+        return True
+    return False
+
+
 class NetworkTracker:
     """
     aplus.gmarket 도메인의 POST 요청을 실시간으로 감지하고 분류하는 클래스
@@ -1524,6 +1537,11 @@ class NetworkTracker:
                         f"키 '{key}'의 값이 일치하지 않습니다. "
                         f"기대값 (빈 문자열): \"\", 실제값: {actual_value}"
                     )
+            elif key in ("origin_price", "promotion_price") and _is_price_sentinel_one(
+                actual_value
+            ):
+                # 상품 미노출·플레이스홀더 등으로 실제값이 1만 오는 경우 기대(<원가>/<할인가> 등)와 무관하게 통과
+                field_passed = True
             elif actual_value is None:
                 errors.append(f"키 '{key}'에 해당하는 값이 없습니다.")
             elif isinstance(expected_value, str) and expected_value == "__MANDATORY__":

@@ -4,9 +4,10 @@ tracking_all JSON 파일을 구글 시트로 변환하여 기본 틀 생성
 """
 import json
 import argparse
+import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Optional, Tuple
 
 # 프로젝트 루트를 sys.path에 추가
 project_root = Path(__file__).parent.parent
@@ -14,13 +15,13 @@ sys.path.insert(0, str(project_root))
 
 from utils.google_sheets_sync import (
     GoogleSheetsSync,
-    flatten_json,
     group_by_event_type,
     TRACKING_TYPE_TO_CONFIG_KEY,
 )
-from utils.schema_template_merge import (
-    default_schema_template_path,
-    filter_flat_rows_to_template,
+from utils.schema_template_merge import default_schema_template_path
+from utils.template_tracking_extract import (
+    build_merged_source,
+    iter_template_sheet_rows,
 )
 
 
@@ -59,85 +60,44 @@ def truncate_spm_value(value: str, max_dots: int) -> str:
 
 def replace_value_with_placeholder(field_name: str, value: Any) -> Any:
     """
-    필드명에 따라 실제 값을 placeholder로 치환
-    
-    Args:
-        field_name: 필드명 (예: 'keyword', 'origin_price', '_p_prod' 등)
-        value: 치환할 값
-    
-    Returns:
-        placeholder로 치환된 값 또는 원본 값 (리스트는 JSON 문자열로 변환)
+    필드명에 따라 실제 값을 placeholder / mandatory / skip 으로 치환.
+
+    ``tracking_schemas/schema_template.json`` 에 정의된 필드만 처리한다.
+    그 외(gokey, ts, device 등 공통 payload)는 치환하지 않고 원본(또는 JSON 직렬화)을 쓴다.
+    (시트 행은 ``schema_template.json`` path 기준으로만 생성된다.)
     """
-    # SPM 필드의 경우 점 개수에 따라 자르기
     if field_name in SPM_DOT_COUNT:
         max_dots = SPM_DOT_COUNT[field_name]
         return truncate_spm_value(value, max_dots)
-    
-    # 필드명에 따라 placeholder로 치환
+
+    # schema_template.json 과 동일한 키만 (공통 필드 일괄 치환 제거)
     field_placeholder_map = {
-        'query': '<검색어>',
-        'origin_price': '<원가>',
-        'promotion_price': '<할인가>',
-        'coupon_price': '<쿠폰적용가>',
-        'server_env': '<environment>',
-        '_p_prod': '<상품번호>',
-        'x_object_id': '<상품번호>',
+        "query": "<검색어>",
+        "origin_price": "<원가>",
+        "promotion_price": "<할인가>",
+        "coupon_price": "<쿠폰적용가>",
+        "_p_prod": "<상품번호>",
+        "x_object_id": "<상품번호>",
         "is_ad": "<is_ad>",
         "trafficType": "<trafficType>",
-        "ts": "mandatory",
-        "rd": "mandatory",
-        "scr": "mandatory",
-        "gokey": "mandatory",
-        "cna": "mandatory",
-        "_p_url": "mandatory",
-        "decoded_gokey": "mandatory",
         "pguid": "skip",
         "sguid": "skip",
-        "st_page_id": "mandatory",
-        "_w": "mandatory",
-        "_h": "mandatory",
-        "_x": "mandatory",
-        "_y": "mandatory",
-        "_rate": "mandatory",
-        "raw" : "mandatory",
-        "params-exp": "mandatory",
-        "module_index": "mandatory",
+        "_p_catalog": "skip",
+        "_p_group": "skip",
         "ab_buckets": "skip",
-        "cache": "mandatory",
-        "platformType": ["pc", "mac"],
-        "device_model": ["Windows", "Macintosh"],
-        "os": ["Windows", "Mac OS X"],
-        "os_version": ["win10", "10.15.7"],
-        "language": ["ko-KR", "en-US"],
-        "o": ["win10", "mac"],
-        "w": ["webkit", "chrome"],
-        "s": "1280x720",
-        "m": "360ee",
-        "ism": ["pc", "mac"],
-        "b": "mandatory",
-        "pvid" : "skip",
-        "_p_catalog" : "skip",
-        "_p_group" : "skip",
-        "utparam-url" : "skip",
-        "search_session_id" : "skip",
-        "_pkgSize" : "skip",
-        "pageSize" : "mandatory",
-        "match_type" : "skip",
-        "cate_leaf_id" : "skip",
-        "self_ab_id" : "skip",
+        "pvid": "skip",
+        "search_session_id": "skip",
+        "match_type": "skip",
+        "cate_leaf_id": "skip",
+        "module_index": "mandatory"
     }
-    
+
     if field_name in field_placeholder_map:
-        result = field_placeholder_map[field_name]
-        # 리스트나 딕셔너리는 JSON 문자열로 변환 (Google Sheets API 호환성)
-        if isinstance(result, (list, dict)):
-            return json.dumps(result, ensure_ascii=False)
-        return result
-    
-    # 원본 값도 리스트나 딕셔너리인 경우 JSON 문자열로 변환
+        return field_placeholder_map[field_name]
+
     if isinstance(value, (list, dict)):
         return json.dumps(value, ensure_ascii=False)
-    
+
     return value
 
 
@@ -154,6 +114,117 @@ def is_tracking_schema_document(data: Any) -> bool:
         return False
     known = _known_schema_root_keys()
     return bool(known.intersection(data.keys()))
+
+
+def resolve_input_json_path(raw: str, project_root: Path) -> Path:
+    """
+    --input 경로를 실제 JSON 파일로 해석한다.
+
+    PowerShell에서 ``...newlowest(1).json`` 처럼 따옴표 없이 주면 ``(1)`` 가 잘려
+    ``...newlowest`` 만 전달되는 경우가 있어, 해당 접두어로 ``*.json`` glob 을 시도한다.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        raise ValueError("--input 값이 비어 있습니다.")
+
+    p = Path(raw)
+    search_bases: List[Path] = []
+    if p.is_absolute():
+        search_bases.append(p)
+    else:
+        search_bases.append(project_root / p)
+        search_bases.append(Path.cwd() / p)
+
+    def first_existing_file(paths: List[Path]) -> Optional[Path]:
+        for cand in paths:
+            try:
+                if cand.is_file():
+                    return cand.resolve()
+            except OSError:
+                continue
+        return None
+
+    hit = first_existing_file(search_bases)
+    if hit:
+        return hit
+
+    for base in search_bases:
+        if base.suffix.lower() != ".json":
+            alt = base.with_suffix(".json")
+            try:
+                if alt.is_file():
+                    return alt.resolve()
+            except OSError:
+                pass
+
+    for base in search_bases:
+        name = base.name
+        if not name:
+            continue
+        parent = base.parent
+        try:
+            if not parent.is_dir():
+                continue
+        except OSError:
+            continue
+        matches = sorted(parent.glob(name + "*.json"))
+        if len(matches) == 1:
+            print(
+                f"입력 경로 보정: {raw!r} → {matches[0]} "
+                "(파일명에 괄호가 있으면 PowerShell에서는 "
+                "--input 'json/…(1).json' 처럼 작은따옴표로 감싸는 것을 권장합니다.)"
+            )
+            return matches[0].resolve()
+        if len(matches) > 1:
+            names = ", ".join(m.name for m in matches)
+            raise FileNotFoundError(
+                f"입력 파일을 찾을 수 없습니다: {raw!r}. "
+                f"접두어 {name!r}에 해당하는 JSON이 여러 개입니다: {names}. "
+                "전체 파일명을 따옴표와 함께 지정하세요."
+            )
+
+    raise FileNotFoundError(
+        f"입력 JSON을 찾을 수 없습니다: {raw!r}. "
+        "프로젝트 루트 또는 현재 디렉터리 기준 경로를 확인하세요. "
+        "PowerShell: --input 'json/tracking_all_모듈(1).json'"
+    )
+
+
+def infer_module_from_input_path(input_path: str) -> str:
+    """
+    입력 경로의 파일명에서 모듈 ID를 추출한다.
+
+    기대 패턴: ``tracking_all_<module>`` 또는 ``tracking_all_<module>(숫자)`` (+ 선택적 ``.json``).
+    예: ``json/tracking_all_today_branddeal(1).json`` → ``today_branddeal``
+
+    Args:
+        input_path: ``--input`` 과 동일한 경로 문자열
+
+    Returns:
+        모듈명 (스키마/시트의 모듈 키와 동일하게 쓰임)
+
+    Raises:
+        ValueError: 파일명이 ``tracking_all_`` 로 시작하지 않거나, 모듈 부분이 비어 있는 경우
+    """
+    p = Path(input_path)
+    stem = p.stem
+    if not stem.startswith("tracking_all_"):
+        raise ValueError(
+            f"모듈 자동 추출: 파일명(확장자 제외)이 'tracking_all_' 으로 시작해야 합니다. "
+            f"현재 stem={stem!r}. --module 로 명시하세요."
+        )
+    rest = stem[len("tracking_all_") :].strip()
+    if not rest:
+        raise ValueError(
+            f"모듈 자동 추출: 'tracking_all_' 뒤에 모듈 식별자가 없습니다. stem={stem!r}"
+        )
+    # 복사본 표기 tracking_all_foo(1) → foo
+    module_id = re.sub(r"\(\d+\)$", "", rest).strip()
+    if not module_id:
+        raise ValueError(
+            f"모듈 자동 추출: '(숫자)' 제거 후 모듈명이 비었습니다. rest={rest!r}"
+        )
+    return module_id
 
 
 def load_tracking_json(file_path: str) -> List[Dict[str, Any]]:
@@ -175,105 +246,31 @@ def load_tracking_json(file_path: str) -> List[Dict[str, Any]]:
     return data
 
 
-
-
-def process_event_type_payload(event_data: Dict[str, Any], event_type: str) -> Dict[str, Any]:
-    """
-    이벤트 타입별로 payload 구조를 config 형식에 맞게 변환
-    
-    Args:
-        event_data: tracking_all JSON의 단일 이벤트 항목
-        event_type: 이벤트 타입
-        
-    Returns:
-        config JSON 형식의 데이터 구조
-    """
-    payload = event_data.get('payload', {})
-    
-    # 이벤트 타입에 따라 다른 구조 처리
-    if event_type == 'Module Exposure':
-        # module_exposure는 payload 전체를 사용
-        return {'payload': payload}
-    
-    elif event_type == 'Product Exposure':
-        # product_exposure는 decoded_gokey.params + payload 최상위 필드 포함
-        result = {}
-        
-        # payload 최상위 필드 중 단순 값 필드들 추가 (dict/list 제외)
-        for key, value in payload.items():
-            if key != 'decoded_gokey' and not isinstance(value, (dict, list)):
-                result[key] = value
-        
-        # decoded_gokey.params의 모든 필드 추가 (params 값이 우선)
-        if 'decoded_gokey' in payload and isinstance(payload['decoded_gokey'], dict):
-            decoded = payload['decoded_gokey']
-            if 'params' in decoded:
-                params = decoded['params']
-                result.update(params)
-        
-        return result if result else payload
-    
-    elif event_type == 'Product Click':
-        # product_click도 decoded_gokey.params + payload 최상위 필드 포함
-        result = {}
-        
-        # payload 최상위 필드 중 단순 값 필드들 추가 (dict/list 제외)
-        for key, value in payload.items():
-            if key != 'decoded_gokey' and not isinstance(value, (dict, list)):
-                result[key] = value
-        
-        # decoded_gokey.params의 모든 필드 추가 (params 값이 우선)
-        if 'decoded_gokey' in payload and isinstance(payload['decoded_gokey'], dict):
-            decoded = payload['decoded_gokey']
-            if 'params' in decoded:
-                params = decoded['params']
-                result.update(params)
-        
-        return result if result else payload
-    
-    elif event_type == 'Product Minidetail':
-        # product_minidetail은 pdp_pv와 동일하게 payload 전체 사용
-        return {'payload': payload}
-    
-    elif event_type == 'Product ATC Click':
-        # product_atc_click도 payload 전체 사용
-        return {'payload': payload}
-    
-    elif event_type == 'PDP PV':
-        # pdp_pv는 payload 전체 사용
-        return {'payload': payload}
-    
-    elif event_type in ('PDP Buynow Click', 'PDP ATC Click', 'PDP Gift Click', 'PDP Join Click', 'PDP Rental Click'):
-        # PDP 클릭 5종: payload 전체 사용 (gokey, decoded_gokey, _p_url 등)
-        return {'payload': payload}
-    
-    else:
-        # 기본적으로 payload 전체 사용
-        return {'payload': payload} if payload else {}
+def _format_sheet_cell(field: str, raw: Any) -> str:
+    """템플릿 리프에 대응하는 시트 값 문자열."""
+    out = replace_value_with_placeholder(field, raw if raw is not None else "")
+    if isinstance(out, str):
+        return out
+    return str(out)
 
 
 def _flatten_module_fields_for_sheet(
-    config_data: Any,
+    merged_source: Any,
     template_section: Any = None,
 ) -> List[Dict[str, str]]:
     """
-    이벤트 한 덩어리를 시트용 평면 행으로 변환.
-    template_section이 있으면 기준 템플릿에 있는 path만 남기고(tracking_all 잡음 제거),
-    placeholder 규칙을 적용한다.
+    schema_template 섹션의 path 순서대로, merged tracking 소스에서 값을 채워 시트 행을 만든다.
     """
-    flattened = flatten_json(config_data, exclude_keys=["timestamp", "method", "url"])
-    if not flattened:
+    if not isinstance(template_section, dict):
+        print("경고: 기준 템플릿 섹션이 없어 해당 이벤트 행을 건너뜁니다.")
         return []
-    if isinstance(template_section, dict):
-        flattened = filter_flat_rows_to_template(flattened, template_section)
-    if not flattened:
-        return []
-    if EXCLUDE_FIELDS:
-        flattened = [item for item in flattened if item.get("field") not in EXCLUDE_FIELDS]
-    for item in flattened:
-        if "field" in item and "value" in item:
-            item["value"] = replace_value_with_placeholder(item["field"], item["value"])
-    return flattened
+    exclude_keys = ["timestamp", "method", "url"] + [k for k in EXCLUDE_FIELDS if k not in ("timestamp", "method", "url")]
+    return iter_template_sheet_rows(
+        template_section,
+        merged_source,
+        format_leaf=_format_sheet_cell,
+        exclude_keys=exclude_keys,
+    )
 
 
 def _build_event_type_rows_from_schema(
@@ -284,7 +281,7 @@ def _build_event_type_rows_from_schema(
 ) -> List[Tuple[str, List[Dict[str, str]]]]:
     """
     tracking_schemas 형 JSON(상품평 많은순.json 등) → (이벤트 타입, 평면 필드) 목록.
-    섹션은 이미 최종 형태이므로 process_event_type_payload 를 거치지 않는다.
+    섹션은 이미 최종 형태이므로 build_merged_source 를 거치지 않는다.
     """
     rows_out: List[Tuple[str, List[Dict[str, str]]]] = []
     for event_type in event_type_order:
@@ -312,8 +309,14 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "JSON을 구글 시트로 반영. "
-            "tracking_all 배열 또는 tracking_schemas 형 단일 객체(상품평 많은순.json 등) 지원."
-        )
+            "tracking_all 배열 또는 tracking_schemas 형 단일 객체 지원. "
+            "시트 경로는 schema_template.json 과 동일하며, 값은 tracking 에서만 채운다."
+        ),
+        epilog=(
+            "PowerShell: 파일명에 괄호가 있으면 반드시 작은따옴표로 경로를 감싸세요. "
+            "예: --input 'json/tracking_all_today_newlowest(1).json'"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         '--input',
@@ -324,8 +327,11 @@ def main():
     parser.add_argument(
         '--module',
         type=str,
-        required=True,
-        help='모듈명 (예: "먼저 둘러보세요")'
+        default=None,
+        help=(
+            '모듈명 (시트 A열 모듈 키, 예: today_branddeal). '
+            '생략 시 --input 파일명에서 추출: tracking_all_<모듈>(선택적 (숫자)).json'
+        ),
     )
     parser.add_argument(
         '--area',
@@ -337,19 +343,18 @@ def main():
         '--template',
         type=str,
         default=None,
-        help=(
-            '기준 스키마 JSON (기본: tracking_schemas/schema_template.json). '
-            '지정 시 해당 템플릿에 정의된 path만 시트로 옮김. '
-            '--no-template-filter 로 전체 path 유지.'
-        ),
-    )
-    parser.add_argument(
-        '--no-template-filter',
-        action='store_true',
-        help='기준 템플릿으로 path 필터링하지 않고 기존처럼 전체 평면 필드를 시트에 씀.',
+        help='기준 스키마 JSON (기본: tracking_schemas/schema_template.json). path·리프 집합의 유일한 기준.',
     )
     args = parser.parse_args()
-    
+
+    args.input = str(resolve_input_json_path(args.input, project_root))
+
+    module_name: Optional[str] = (args.module or "").strip() or None
+    if not module_name:
+        module_name = infer_module_from_input_path(args.input)
+        print(f"모듈명 자동 추출: {module_name!r} (--input 파일명 기준)")
+    args.module = module_name
+
     # config.json에서 설정 로드
     config_path = project_root / 'config.json'
     with open(config_path, 'r', encoding='utf-8') as f:
@@ -359,15 +364,12 @@ def main():
         raise RuntimeError("config.json에 'spreadsheet_id'가 설정되어 있지 않습니다.")
     CREDENTIALS_PATH = str(project_root / 'python-link-test-380006-2868d392d217.json')
     
-    template_obj = None
-    if not args.no_template_filter:
-        tmpl_path = Path(args.template) if args.template else default_schema_template_path(project_root)
-        if tmpl_path.is_file():
-            with open(tmpl_path, encoding="utf-8") as f:
-                template_obj = json.load(f)
-            print(f"기준 템플릿 로드 (path 필터): {tmpl_path}")
-        else:
-            print(f"경고: 기준 템플릿 없음 ({tmpl_path}) — path 필터 없이 전체 필드를 시트에 씁니다.")
+    tmpl_path = Path(args.template) if args.template else default_schema_template_path(project_root)
+    if not tmpl_path.is_file():
+        raise RuntimeError(f"기준 템플릿 파일이 필요합니다. 없음: {tmpl_path}")
+    with open(tmpl_path, encoding="utf-8") as f:
+        template_obj = json.load(f)
+    print(f"기준 템플릿 로드 (path 기준): {tmpl_path}")
 
     # JSON 파일 로드 (스키마 객체 vs tracking_all 배열 자동 판별)
     print(f"JSON 파일 로드 중: {args.input}")
@@ -446,10 +448,10 @@ def main():
             if not events:
                 continue
             event_data = events[0]
-            config_data = process_event_type_payload(event_data, event_type)
+            merged = build_merged_source(event_data, event_type)
             config_key = TRACKING_TYPE_TO_CONFIG_KEY[event_type]
             tmpl_sec = template_obj.get(config_key) if isinstance(template_obj, dict) else None
-            flattened = _flatten_module_fields_for_sheet(config_data, tmpl_sec)
+            flattened = _flatten_module_fields_for_sheet(merged, tmpl_sec)
             if not flattened:
                 continue
             event_type_rows.append((event_type, flattened))

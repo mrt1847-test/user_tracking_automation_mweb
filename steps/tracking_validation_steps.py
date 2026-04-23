@@ -172,6 +172,61 @@ def _get_common_context(bdd_context):
     return tracker, goodscode, module_title, frontend_data if frontend_data else None, area
 
 
+def _get_common_context_for_module_exposure(bdd_context):
+    """
+    Module Exposure 전용 context.
+    섹션 이동만 한 시나리오 등 goodscode가 없을 때는 PDP PV 기반 가격 추출을 생략하고 goodscode는 빈 문자열로 둔다.
+    goodscode가 있으면 기존 _get_common_context와 동일하게 PDP PV에서 frontend_data를 채운다.
+    """
+    from utils.validation_helpers import extract_price_info_from_pdp_pv
+
+    tracker = bdd_context.get('tracker')
+    if not tracker:
+        raise ValueError("bdd_context에 'tracker'가 없습니다. 네트워크 트래킹을 시작해주세요.")
+
+    module_title = bdd_context.get('module_title')
+    if not module_title:
+        raise ValueError("bdd_context에 'module_title'가 없습니다.")
+
+    area = bdd_context.get('area')
+    if not area:
+        raise ValueError("bdd_context에 'area'가 없습니다. Feature 파일 경로에서 영역을 추론하지 못했습니다.")
+
+    raw_gs = bdd_context.get('goodscode')
+    if raw_gs is None or raw_gs == '':
+        goodscode = ''
+    else:
+        goodscode = str(raw_gs).strip()
+
+    keyword = bdd_context.get('keyword', '')
+    category_id = bdd_context.get('category_id', '')
+
+    is_ad = None
+    if hasattr(bdd_context, 'store') and hasattr(bdd_context.store, 'get'):
+        is_ad = bdd_context.store.get('is_ad')
+    elif hasattr(bdd_context, 'get'):
+        is_ad = bdd_context.get('is_ad')
+
+    frontend_data = {}
+    if goodscode:
+        price_info = extract_price_info_from_pdp_pv(tracker, goodscode)
+        if price_info:
+            frontend_data = price_info.copy()
+    else:
+        logger.debug(
+            "Module Exposure 검증: goodscode 없음 — PDP PV 기반 가격 데이터는 사용하지 않습니다."
+        )
+
+    if keyword:
+        frontend_data['keyword'] = keyword
+    if category_id:
+        frontend_data['category_id'] = category_id
+    if is_ad is not None:
+        frontend_data['is_ad'] = is_ad
+
+    return tracker, goodscode, module_title, frontend_data if frontend_data else None, area
+
+
 @then("PV 로그가 정합성 검증을 통과해야 함")
 def then_pv_logs_should_pass_validation(bdd_context):
     """PV 로그 정합성 검증 (module_config.json에 정의된 경우만)"""
@@ -278,7 +333,9 @@ def then_module_exposure_logs_should_pass_validation(tc_id, bdd_context):
         return
     
     try:
-        tracker, goodscode, module_title, frontend_data, area = _get_common_context(bdd_context)
+        tracker, goodscode, module_title, frontend_data, area = _get_common_context_for_module_exposure(
+            bdd_context
+        )
         
         # TestRail TC 번호를 context에 저장
         logger.debug(f"bdd_context['testrail_tc_id']에 {tc_id} 저장")
