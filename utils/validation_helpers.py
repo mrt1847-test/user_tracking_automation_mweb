@@ -15,6 +15,8 @@ EVENT_TYPE_METHODS = {
     'Module Exposure': 'get_module_exposure_logs_by_goodscode',
     'Product Exposure': 'get_product_exposure_logs_by_goodscode',
     'Product Click': 'get_product_click_logs_by_goodscode',
+    'General Exposure': 'get_general_exposure_logs_by_spm',
+    'General Click': 'get_general_click_logs_by_spm',
     'Product ATC Click': 'get_product_atc_click_logs_by_goodscode',
     'Product Minidetail': 'get_product_minidetail_logs_by_goodscode',
     'PDP Buynow Click': 'get_pdp_buynow_click_logs_by_goodscode',
@@ -30,6 +32,8 @@ EVENT_TYPE_CONFIG_KEY_MAP = {
     'Module Exposure': 'module_exposure',
     'Product Exposure': 'product_exposure',
     'Product Click': 'product_click',
+    'General Exposure': 'general_exposure',
+    'General Click': 'general_click',
     'Product ATC Click': 'product_atc_click',  # 별도 섹션으로 분리
     'Product Minidetail': 'product_minidetail',
     'PDP PV': 'pdp_pv',
@@ -276,6 +280,26 @@ def get_event_logs(tracker: NetworkTracker, event_type: str, goodscode: str, mod
             logs = tracker.get_product_exposure_logs_by_goodscode(goodscode)
     elif event_type == 'Product Click':
         logs = tracker.get_product_click_logs_by_goodscode(goodscode)
+    elif event_type == 'General Exposure':
+        if isinstance(module_spm, str) and module_spm:
+            logs = tracker.get_general_exposure_logs_by_spm(module_spm)
+        elif isinstance(module_spm, list):
+            logs = []
+            for spm in module_spm:
+                logs.extend(tracker.get_general_exposure_logs_by_spm(spm))
+            logs = _dedupe_logs(logs)
+        else:
+            logs = tracker.get_logs('General Exposure')
+    elif event_type == 'General Click':
+        if isinstance(module_spm, str) and module_spm:
+            logs = tracker.get_general_click_logs_by_spm(module_spm)
+        elif isinstance(module_spm, list):
+            logs = []
+            for spm in module_spm:
+                logs.extend(tracker.get_general_click_logs_by_spm(spm))
+            logs = _dedupe_logs(logs)
+        else:
+            logs = tracker.get_logs('General Click')
     elif event_type == 'Product ATC Click':
         logs = tracker.get_product_atc_click_logs_by_goodscode(goodscode)
     elif event_type == 'Product Minidetail':

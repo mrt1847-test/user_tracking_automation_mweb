@@ -182,5 +182,29 @@
       "sub_biz_source": "",
       "module_private_id": ""
     }
+  },
+  "general_exposure": {
+    "spm": "mandatory",
+    "spm-cnt": "mandatory",
+    "spm-url": "skip",
+    "spm-pre": "skip",
+    "cguid": "mandatory",
+    "pguid": "mandatory",
+    "sguid": "mandatory",
+    "gmkt_area_code": "mandatory",
+    "content": "skip",
+    "ab_buckets": "skip"
+  },
+  "general_click": {
+    "spm": "mandatory",
+    "spm-cnt": "mandatory",
+    "spm-url": "skip",
+    "spm-pre": "skip",
+    "cguid": "mandatory",
+    "pguid": "mandatory",
+    "sguid": "mandatory",
+    "gmkt_area_code": "mandatory",
+    "content": "skip",
+    "ab_buckets": "skip"
   }
 }

@@ -24,6 +24,26 @@ Feature: G마켓 Home 트래킹 로그 정합성 검증
       | 홈            | 1 | today_hmjfy0        | 1 | C1829136           | C1829137            | C1829138         |
       | 홈            | 1 | today_campaign      | 1 | C1829148           | C1829149            | C1829150         | 
 
+  Scenario: 홈 섹션 모듈별 상품 클릭 시 트래킹 로그 검증
+    Given 네트워크 트래킹이 시작되었음
+    Given G마켓 홈 페이지에 접속했음
+    When 사용자가 "<section_name>" 섹션으로 이동한다
+    Then "<section_name>" 섹션으로 이동했다
+    Given 섹션에 "<n>"번째 "<module_title>" 모듈이 있다
+    When 홈에서 사용자가 "<n>"번째 "<module_title>" 모듈 내 General 요소를 클릭한다
+    Then 모든 트래킹 로그를 JSON 파일로 저장함
+    Then Module Exposure 로그가 정합성 검증을 통과해야 함 (TC: <tc_module_exposure>)
+    And General Exposure 로그가 정합성 검증을 통과해야 함 (TC: <tc_general_exposure>)
+    And General Click 로그가 정합성 검증을 통과해야 함 (TC: <tc_general_click>)
+
+    Examples:
+      | section_name  | n | module_title        | nth | tc_module_exposure | tc_general_exposure | tc_general_click | 
+      | 홈            | 1 | today_itemcarousel  | 1 | C1829145           | C1829146            | C1829147        | 
+      | 홈            | 1 | today_newlowest     | 1 | C1829139           | C1829140            | C1829141         | 
+      | 홈            | 1 | today_hmjfy0        | 1 | C1829136           | C1829137            | C1829138         |
+      | 홈            | 1 | today_campaign      | 1 | C1829148           | C1829149            | C1829150         | 
+
+  
   Scenario: 홈 섹션 이동시 module exposure 트래킹 로그 검증
     Given 네트워크 트래킹이 시작되었음
     Given G마켓 홈 페이지에 접속했음

@@ -415,6 +415,8 @@ def main():
         'Module Exposure',
         'Product Exposure',
         'Product Click',
+        'General Exposure',
+        'General Click',
         'Product ATC Click',
         'Product Minidetail',
         'PDP PV',

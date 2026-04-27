@@ -69,6 +69,10 @@ def create_config_json(
         'module_exposure', 'product_atc_click', 'product_minidetail', 'pdp_pv',
         'pdp_buynow_click', 'pdp_atc_click', 'pdp_gift_click', 'pdp_join_click', 'pdp_rental_click',
     ]
+
+    # schema_template 기준으로 payload 래핑 없이 평탄 키를 유지해야 하는 타입들
+    # (General 이벤트는 schema_template에서 flat 구조이므로 sheets_to_json에서도 동일하게 유지)
+    flat_schema_types = ['general_exposure', 'general_click']
     
     for config_key, flat_data in event_data_dict.items():
         if not flat_data:
@@ -89,6 +93,14 @@ def create_config_json(
         else:
             # 다른 이벤트 타입은 그대로 사용
             config[config_key] = nested_data
+
+        # General 이벤트는 payload 래핑이 들어오더라도 스키마(flat) 형태로 정규화
+        if config_key in flat_schema_types and isinstance(config.get(config_key), dict):
+            cur = config[config_key]
+            if 'payload' in cur and isinstance(cur['payload'], dict):
+                payload_inner = cur['payload']
+                rest = {k: v for k, v in cur.items() if k != 'payload'}
+                config[config_key] = {**payload_inner, **rest}
     
     return config
 

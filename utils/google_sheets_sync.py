@@ -32,6 +32,8 @@ TRACKING_TYPE_TO_CONFIG_KEY = {
     'Module Exposure': 'module_exposure',
     'Product Exposure': 'product_exposure',
     'Product Click': 'product_click',
+    'General Exposure': 'general_exposure',
+    'General Click': 'general_click',
     'Product ATC Click': 'product_atc_click',
     'Product Minidetail': 'product_minidetail',
 }

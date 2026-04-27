@@ -423,3 +423,51 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
         if 'module_title' not in bdd_context.store:
             bdd_context.store['module_title'] = module_title
         bdd_context.store['nth'] = int(nth)
+
+
+
+@when(parsers.parse('홈에서 사용자가 "{n:d}"번째 "{module_title}" 모듈 내 General 요소를 클릭한다'))
+def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, module_title, bdd_context):
+    """
+    홈 섹션 모듈 내 상품 노출 확인 후 클릭.
+    스텝 문구는 `홈에서`로 시작해 `steps.srp_lp_steps`의
+    `사용자가 "{module_title}" 모듈 내 …` 와 겹치지 않게 한다 (같은 문장이면 SRP 쪽이 나중 로드되어 덮어씀).
+    모듈은 `data-spm`(SPMC)로 `find_module_by_spmc`에 찾는다.
+
+    실패 시에도 다음 스텝으로 진행
+
+    Args:
+        browser_session: BrowserSession 객체 (page 참조 관리)
+        n: 모듈 순번(1-based)
+        module_title: 모듈 SPMC (`data-spm` 속성값)
+        bdd_context: BDD context (step 간 데이터 공유용)
+    """
+    try:
+        # 트래킹 스키마 로드 시 모듈명(n).json 매칭용
+        bdd_context.store["module_title"] = module_title
+        bdd_context.store["module_order"] = int(n)
+        home_page = HomePage(browser_session.page)
+
+        # 모듈 찾기 (n은 1-based 입력이므로 0-based 인덱스로 변환)
+        module = home_page.find_module_by_spmc(module_title, max(int(n) - 1, 0))
+
+        # 모듈 내 버튼 찾기
+        button = home_page.get_button_by_name(module_title,module)
+        button.tap(timeout=5000)
+        logger.info('%s 모듈(%s번째) 내 General 요소 클릭 완료', module_title, n)
+        try:
+            browser_session.page.wait_for_load_state("domcontentloaded", timeout=3000)
+        except Exception:
+            pass
+        bdd_context.store["product_url"] = browser_session.page.url
+    except Exception as e:
+        # 예상치 못한 예외 처리
+        logger.error(f"프론트 동작 중 예외 발생: {e}", exc_info=True)
+        record_frontend_failure(
+            browser_session,
+            bdd_context,
+            str(e),
+            '홈에서 사용자가 "<n>"번째 "<module_title>" 모듈 내 <nth>번째 상품을 확인하고 클릭한다',
+        )
+        if 'module_title' not in bdd_context.store:
+            bdd_context.store['module_title'] = module_title

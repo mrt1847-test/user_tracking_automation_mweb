@@ -23,11 +23,11 @@ def _check_and_validate_event_logs(
     event_type: str,
     event_config_key: str,
     tracker,
-    goodscode: str,
     module_title: str,
     frontend_data,
     area: str,
-    bdd_context
+    bdd_context,
+    goodscode: str = '',
 ) -> bool:
     """
     이벤트 로그 수집 확인 및 정합성 검증 (단순화된 로직)
@@ -439,6 +439,70 @@ def then_product_click_logs_should_pass_validation(tc_id, bdd_context):
         # 예외를 다시 발생시키지 않음 (다음 스텝 계속 실행)
 
 
+@then(parsers.re(r'General Exposure 로그가 정합성 검증을 통과해야 함 \(TC: (?P<tc_id>.*)\)'))
+def then_general_exposure_logs_should_pass_validation(tc_id, bdd_context):
+    """General Exposure 로그 정합성 검증 (module_config.json에 정의된 경우만)"""
+    logger.debug(f"then_general_exposure_logs_should_pass_validation 실행: tc_id={tc_id}")
+    if not tc_id or tc_id.strip() == '':
+        logger.info("TC 번호가 비어있어 General Exposure 로그 검증을 건너뜁니다.")
+        return
+
+    try:
+        tracker, _, module_title, frontend_data, area = _get_common_context_for_module_exposure(
+            bdd_context
+        )
+        logger.debug(f"bdd_context['testrail_tc_id']에 {tc_id} 저장")
+        bdd_context['testrail_tc_id'] = tc_id
+        _check_and_validate_event_logs(
+            tc_id=tc_id,
+            event_type='General Exposure',
+            event_config_key='general_exposure',
+            tracker=tracker,
+            module_title=module_title,
+            frontend_data=frontend_data,
+            area=area,
+            bdd_context=bdd_context
+        )
+    except Exception as e:
+        error_message = f"[TestRail TC: {tc_id}] General Exposure 로그 검증 중 예외 발생: {str(e)}"
+        logger.error(error_message, exc_info=True)
+        bdd_context['testrail_tc_id'] = tc_id
+        bdd_context['validation_failed'] = True
+        bdd_context['validation_error_message'] = error_message
+
+
+@then(parsers.re(r'General Click 로그가 정합성 검증을 통과해야 함 \(TC: (?P<tc_id>.*)\)'))
+def then_general_click_logs_should_pass_validation(tc_id, bdd_context):
+    """General Click 로그 정합성 검증 (module_config.json에 정의된 경우만)"""
+    logger.debug(f"then_general_click_logs_should_pass_validation 실행: tc_id={tc_id}")
+    if not tc_id or tc_id.strip() == '':
+        logger.info("TC 번호가 비어있어 General Click 로그 검증을 건너뜁니다.")
+        return
+
+    try:
+        tracker, _, module_title, frontend_data, area = _get_common_context_for_module_exposure(
+            bdd_context
+        )
+        logger.debug(f"bdd_context['testrail_tc_id']에 {tc_id} 저장")
+        bdd_context['testrail_tc_id'] = tc_id
+        _check_and_validate_event_logs(
+            tc_id=tc_id,
+            event_type='General Click',
+            event_config_key='general_click',
+            tracker=tracker,
+            module_title=module_title,
+            frontend_data=frontend_data,
+            area=area,
+            bdd_context=bdd_context
+        )
+    except Exception as e:
+        error_message = f"[TestRail TC: {tc_id}] General Click 로그 검증 중 예외 발생: {str(e)}"
+        logger.error(error_message, exc_info=True)
+        bdd_context['testrail_tc_id'] = tc_id
+        bdd_context['validation_failed'] = True
+        bdd_context['validation_error_message'] = error_message
+
+
 @then(parsers.re(r'Product ATC Click 로그가 정합성 검증을 통과해야 함 \(TC: (?P<tc_id>.*)\)'))
 def then_product_atc_click_logs_should_pass_validation(tc_id, bdd_context):
     """Product ATC Click 로그 정합성 검증 (module_config.json에 정의된 경우만)"""
@@ -715,11 +779,19 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None)
         
         # 모듈별 설정에서 SPM 가져오기 (이벤트 타입별 섹션에서, 재귀적으로 탐색)
         module_spm = None
+        general_exposure_spm = None
+        general_click_spm = None
         if isinstance(module_config, dict):
             # module_exposure 섹션에서 spm 가져오기 (재귀적으로 탐색)
             module_exposure = module_config.get('module_exposure', {})
             if module_exposure:
                 module_spm = _find_spm_recursive(module_exposure)
+            general_exposure = module_config.get('general_exposure', {})
+            if general_exposure:
+                general_exposure_spm = _find_spm_recursive(general_exposure)
+            general_click = module_config.get('general_click', {})
+            if general_click:
+                general_click_spm = _find_spm_recursive(general_click)
 
         module_safe = module_title_to_filename(module_title)
 
@@ -803,6 +875,37 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None)
             product_exposure_logs = tracker.get_product_exposure_logs_by_goodscode(goodscode)
         all_logs.extend(product_exposure_logs)
         all_logs.extend(tracker.get_product_click_logs_by_goodscode(goodscode))
+
+        if isinstance(general_exposure_spm, str) and general_exposure_spm:
+            general_exposure_logs = tracker.get_general_exposure_logs_by_spm(general_exposure_spm)
+            all_logs.extend(general_exposure_logs)
+            logger.info(f"SPM '{general_exposure_spm}'로 필터링된 General Exposure 로그: {len(general_exposure_logs)}개")
+        elif isinstance(general_exposure_spm, list):
+            general_exposure_logs = []
+            for spm in general_exposure_spm:
+                general_exposure_logs.extend(tracker.get_general_exposure_logs_by_spm(spm))
+            all_logs.extend(general_exposure_logs)
+            logger.info(f"SPM 목록 {general_exposure_spm}로 OR 필터링된 General Exposure 로그: {len(general_exposure_logs)}개")
+        else:
+            general_exposure_logs = tracker.get_logs('General Exposure')
+            all_logs.extend(general_exposure_logs)
+            logger.warning(f"모듈 '{module_title}'의 general_exposure SPM 값이 없어 전체 General Exposure 로그를 사용합니다.")
+
+        if isinstance(general_click_spm, str) and general_click_spm:
+            general_click_logs = tracker.get_general_click_logs_by_spm(general_click_spm)
+            all_logs.extend(general_click_logs)
+            logger.info(f"SPM '{general_click_spm}'로 필터링된 General Click 로그: {len(general_click_logs)}개")
+        elif isinstance(general_click_spm, list):
+            general_click_logs = []
+            for spm in general_click_spm:
+                general_click_logs.extend(tracker.get_general_click_logs_by_spm(spm))
+            all_logs.extend(general_click_logs)
+            logger.info(f"SPM 목록 {general_click_spm}로 OR 필터링된 General Click 로그: {len(general_click_logs)}개")
+        else:
+            general_click_logs = tracker.get_logs('General Click')
+            all_logs.extend(general_click_logs)
+            logger.warning(f"모듈 '{module_title}'의 general_click SPM 값이 없어 전체 General Click 로그를 사용합니다.")
+
         all_logs.extend(tracker.get_product_atc_click_logs_by_goodscode(goodscode))
         all_logs.extend(tracker.get_product_minidetail_logs_by_goodscode(goodscode))
         all_logs.extend(tracker.get_pdp_buynow_click_logs_by_goodscode(goodscode))

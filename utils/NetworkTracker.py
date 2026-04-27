@@ -60,6 +60,7 @@ class NetworkTracker:
             
         Returns:
             'PV', 'PDP PV', 'Module Exposure', 'Product Exposure', 'Product Click', 'Product ATC Click',
+            'General Exposure', 'General Click',
             'PDP Buynow Click', 'PDP ATC Click', 'PDP Gift Click', 'PDP Join Click', 'PDP Rental Click',
             'Product Minidetail', 또는 'Unknown'
         """
@@ -89,6 +90,14 @@ class NetworkTracker:
         # Product Minidetail: Product.Minidetail.Event 패턴
         if '/product.minidetail.event' in url_lower:
             return 'Product Minidetail'
+
+        # General Exposure: General.Exposure.Event 패턴
+        if '/general.exposure.event' in url_lower:
+            return 'General Exposure'
+
+        # General Click: General.Click.Event 패턴
+        if '/general.click.event' in url_lower:
+            return 'General Click'
         
         # Module Exposure: Module.Exposure.Event 패턴
         if '/module.exposure.event' in url_lower:
@@ -1306,7 +1315,45 @@ class NetworkTracker:
             해당 goodscode의 Product Click 로그 리스트
         """
         return self.get_logs_by_goodscode(goodscode, 'Product Click')
-    
+
+    def get_general_exposure_logs_by_spm(self, spm: str) -> List[Dict[str, Any]]:
+        """
+        spm 기준으로 General Exposure 로그만 반환
+
+        Args:
+            spm: SPM 값
+
+        Returns:
+            해당 spm의 General Exposure 로그 리스트
+        """
+        filtered_logs = []
+        logs = self.get_logs('General Exposure')
+        for log in logs:
+            log_spm = self._extract_spm_from_log(log)
+            if log_spm and self._check_spm_match(log_spm, spm):
+                filtered_logs.append(log)
+        logger.info(f"SPM '{spm}'로 필터링된 General Exposure 로그: {len(filtered_logs)}/{len(logs)}개")
+        return filtered_logs
+
+    def get_general_click_logs_by_spm(self, spm: str) -> List[Dict[str, Any]]:
+        """
+        spm 기준으로 General Click 로그만 반환
+
+        Args:
+            spm: SPM 값
+
+        Returns:
+            해당 spm의 General Click 로그 리스트
+        """
+        filtered_logs = []
+        logs = self.get_logs('General Click')
+        for log in logs:
+            log_spm = self._extract_spm_from_log(log)
+            if log_spm and self._check_spm_match(log_spm, spm):
+                filtered_logs.append(log)
+        logger.info(f"SPM '{spm}'로 필터링된 General Click 로그: {len(filtered_logs)}/{len(logs)}개")
+        return filtered_logs
+
     def get_product_atc_click_logs_by_goodscode(self, goodscode: str) -> List[Dict[str, Any]]:
         """
         goodscode 기준으로 Product ATC Click 로그만 반환
