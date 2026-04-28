@@ -813,6 +813,8 @@ _TESTRAIL_NON_SUITE_TOP_KEYS = frozenset(
         "project_id",
         "section_id",
         "suite_id",
+        "testrail_run_id",
+        "testrail_run_create",
     }
 )
 
@@ -885,7 +887,7 @@ def _paths_to_suite_rules(raw: Dict[str, Any]) -> list[tuple[str, str]]:
 def _testrail_overlay_keys(raw: Dict[str, Any]) -> tuple[str, ...]:
     keys = raw.get("testrail_overlay_keys")
     if keys is None:
-        return ("milestone_id", "project_id", "section_id", "suite_id")
+        return ("milestone_id", "project_id", "section_id", "suite_id", "testrail_run_id")
     if not isinstance(keys, (list, tuple)):
         raise RuntimeError("config.json의 testrail_overlay_keys는 문자열 배열이어야 합니다.")
     return tuple(str(x) for x in keys)
@@ -984,7 +986,7 @@ def _refresh_testrail_globals() -> None:
     """app_config(config.json 병합본) 기준으로 TestRail 관련 모듈 전역을 다시 설정한다."""
     global TESTRAIL_REPORT_ENABLED, TESTRAIL_RUN_NAME, TESTRAIL_CLOSE_RUN_ON_FINISH
     global TESTRAIL_BASE_URL, TESTRAIL_PROJECT_ID, TESTRAIL_SUITE_ID, TESTRAIL_SECTION_ID, TESTRAIL_MILESTONE_ID
-    global TESTRAIL_USER, TESTRAIL_TOKEN
+    global TESTRAIL_USER, TESTRAIL_TOKEN, TESTRAIL_TARGET_RUN_ID, TESTRAIL_RUN_CREATE
 
     TESTRAIL_REPORT_ENABLED = (app_config.get("testrail_report") or "N").strip().upper() == "Y"
     TESTRAIL_RUN_NAME = (
@@ -993,6 +995,29 @@ def _refresh_testrail_globals() -> None:
     TESTRAIL_CLOSE_RUN_ON_FINISH = (
         (app_config.get("testrail_close_run_on_finish") or "Y").strip().upper() == "Y"
     )
+    raw_run_create = app_config.get("testrail_run_create", True)
+    if isinstance(raw_run_create, bool):
+        TESTRAIL_RUN_CREATE = raw_run_create
+    else:
+        normalized_run_create = str(raw_run_create).strip().lower()
+        if normalized_run_create in {"true", "y", "yes", "1"}:
+            TESTRAIL_RUN_CREATE = True
+        elif normalized_run_create in {"false", "n", "no", "0"}:
+            TESTRAIL_RUN_CREATE = False
+        else:
+            raise RuntimeError(
+                f"config.json의 testrail_run_create 값 '{raw_run_create}'는 true/false(또는 Y/N)여야 합니다."
+            )
+    raw_target_run_id = app_config.get("testrail_run_id")
+    if raw_target_run_id is None or str(raw_target_run_id).strip() == "":
+        TESTRAIL_TARGET_RUN_ID = None
+    else:
+        try:
+            TESTRAIL_TARGET_RUN_ID = int(str(raw_target_run_id).strip())
+        except (TypeError, ValueError):
+            raise RuntimeError(
+                f"config.json의 testrail_run_id 값 '{raw_target_run_id}'는 숫자여야 합니다."
+            )
 
     if TESTRAIL_REPORT_ENABLED:
         try:
@@ -1017,6 +1042,7 @@ def _refresh_testrail_globals() -> None:
             TESTRAIL_PROJECT_ID
         ) = TESTRAIL_SUITE_ID = TESTRAIL_SECTION_ID = TESTRAIL_MILESTONE_ID = None
         TESTRAIL_USER = TESTRAIL_TOKEN = None
+        TESTRAIL_TARGET_RUN_ID = None
 
 
 _refresh_testrail_globals()
@@ -1037,6 +1063,7 @@ def pytest_configure(config):
 
 
 testrail_run_id = None
+testrail_run_created_by_session = False
 case_id_map = {}  # {섹션 이름: [케이스ID 리스트]}
 test_logs = {}  # {nodeid: 로그 문자열} - 테스트별 로그 저장
 current_test_nodeid = None  # 현재 실행 중인 테스트의 nodeid
@@ -1110,7 +1137,7 @@ def pytest_sessionstart(session):
     1. section_id 기반으로 해당 섹션과 모든 하위 섹션의 케이스 ID 가져오기
     2. 그 케이스들로 Run 생성
     """
-    global testrail_run_id, case_id_map
+    global testrail_run_id, case_id_map, testrail_run_created_by_session
     
     if not TESTRAIL_REPORT_ENABLED:
         print("[TestRail] testrail_report가 Y가 아님 - 기록 비활성화")
@@ -1121,7 +1148,31 @@ def pytest_sessionstart(session):
     
     if testrail_run_id is not None:
         print(f"[TestRail] 이미 Run(ID={testrail_run_id})이 존재합니다. 새 Run 생성 생략")
+        testrail_run_created_by_session = False
         return
+
+    if not TESTRAIL_RUN_CREATE:
+        if TESTRAIL_TARGET_RUN_ID is None:
+            raise RuntimeError(
+                "[TestRail] testrail_run_create=false 인 경우 config.json에 testrail_run_id를 반드시 설정해야 합니다."
+            )
+        try:
+            testrail_get(f"get_run/{TESTRAIL_TARGET_RUN_ID}")
+            testrail_run_id = TESTRAIL_TARGET_RUN_ID
+            testrail_run_created_by_session = False
+            print(
+                f"[TestRail] testrail_run_create=false - 기존 Run(ID={testrail_run_id})에 결과를 기록합니다."
+            )
+            return
+        except Exception as e:
+            raise RuntimeError(
+                f"[TestRail] config.json에 지정한 testrail_run_id={TESTRAIL_TARGET_RUN_ID} 조회 실패: {e}"
+            )
+
+    if TESTRAIL_TARGET_RUN_ID is not None:
+        print(
+            f"[TestRail] testrail_run_create=true - testrail_run_id={TESTRAIL_TARGET_RUN_ID}는 무시하고 새 Run을 생성합니다."
+        )
     
     if not TESTRAIL_SECTION_ID:
         logger.error(f"TESTRAIL_SECTION_ID가 정의되지 않았습니다.")
@@ -1201,6 +1252,7 @@ def pytest_sessionstart(session):
         logger.debug(f"TestRail Run 생성 시도: project_id={TESTRAIL_PROJECT_ID}, case_ids 개수={len(all_case_ids)}")
         run = testrail_post(f"add_run/{TESTRAIL_PROJECT_ID}", payload)
         testrail_run_id = run["id"]
+        testrail_run_created_by_session = True
         print(f"[TestRail] section_id '{section_id_int}' (하위 섹션 포함) Run 생성 완료 (ID={testrail_run_id})")
         logger.debug(f"pytest_sessionstart 완료: testrail_run_id={testrail_run_id}")
     except Exception as e:
@@ -1297,10 +1349,17 @@ def pytest_sessionfinish(session, exitstatus):
     """
     전체 테스트 종료 후 Run 닫기
     """
-    global testrail_run_id
-    if testrail_run_id and TESTRAIL_CLOSE_RUN_ON_FINISH:
+    global testrail_run_id, testrail_run_created_by_session
+    if (
+        testrail_run_id
+        and testrail_run_created_by_session
+        and TESTRAIL_RUN_CREATE
+        and TESTRAIL_CLOSE_RUN_ON_FINISH
+    ):
         testrail_post(f"close_run/{testrail_run_id}", {})
         print(f"[TestRail] Run {testrail_run_id} 종료 완료")
+    elif testrail_run_id and (not testrail_run_created_by_session or not TESTRAIL_RUN_CREATE):
+        print(f"[TestRail] 기존 Run(ID={testrail_run_id}) 재사용 모드 - 자동 종료 생략")
     elif testrail_run_id and not TESTRAIL_CLOSE_RUN_ON_FINISH:
         print(f"[TestRail] testrail_close_run_on_finish=N - Run {testrail_run_id} 자동 종료 생략")
 

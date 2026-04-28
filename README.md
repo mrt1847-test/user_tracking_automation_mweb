@@ -229,7 +229,9 @@ pipenv run pytest test/prod/ -v *>&1 | Tee-Object -FilePath pytest.log
 - `driver`: 브라우저 (예: `"Chrome"`)
 - `match_rate`: 검증 시 허용 매칭률 (예: `0.88`)
 - `testrail_report`: TestRail 보고 여부 (예: `"Y"` / `"N"`)
+- `testrail_run_create`: (선택) TestRail Run 생성 여부 (`true`/`false`). `false`면 `testrail_run_id`의 기존 Run에만 기록
 - `tr_url`, `project_id`, `suite_id`, `section_id`, `milestone_id`: TestRail 연동
+- `testrail_run_id`: (선택) 기존 TestRail Run ID. 값이 있으면 새 Run을 만들지 않고 해당 Run에 결과 기록
 - `spreadsheet_id`: Google Sheets 연동 시 스프레드시트 ID
 - `case_id`: (선택) 테스트 케이스 ID 목록
 
@@ -425,6 +427,7 @@ Feature: G마켓 SRP 트래킹 로그 정합성 검증
 ### 주요 기능
 
 1. **자동 Run 생성**: 테스트 세션 시작 시 `config.json`의 `section_id` 기반으로 TestRail Run 자동 생성
+   - `testrail_run_create=false`면 Run 생성 없이 `testrail_run_id` 기존 Run에 바로 기록
 2. **스텝별 결과 기록**: 각 BDD 스텝 실행 후 TestRail에 결과 자동 기록
 3. **TC 번호 추출**: 스텝 파라미터에서 TC 번호 (예: `C12345`) 자동 추출
 4. **스크린샷 첨부**: 실패 시 자동으로 스크린샷 캡처 및 첨부
@@ -441,7 +444,9 @@ TestRail 연동을 위해서는 `config.json`에 TestRail 설정이 필요합니
   "project_id": "212",
   "suite_id": "1999",
   "section_id": "69751",
-  "milestone_id": "1564"
+  "milestone_id": "1564",
+  "testrail_run_create": true,
+  "testrail_run_id": ""
 }
 ```
 
