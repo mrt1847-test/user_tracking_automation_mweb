@@ -443,7 +443,7 @@ class HomePage(BasePage):
         elif module_title == "today_newlowest":
             button = module.locator(".gds-heading__side-action").first
         elif module_title == "today_campaign":
-            button = module.locator(".gds-heading__side-action").first
+            button = module.locator(".link__coupon ").first
         elif module_title == "today_hmjfy0":
             button = module.locator(".link__item-feed").first
         else:

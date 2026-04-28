@@ -27,12 +27,18 @@ _URLS = {
         "cart": "https://cart.gmarket.co.kr/ko/m/cart",
         "checkout": "https://checkout.gmarket.co.kr",
         "my": "https://my.gmarket.co.kr/ko/mo/Main"
+    },
+    "elsa": {
+        "base": "https://elsa-fe-dev.gmarket.co.kr/",
+        "cart": "https://cart-dev.gmarket.co.kr/ko/m/cart",
+        "checkout": "https://checkout-dev.gmarket.co.kr",
+        "my": "https://my-dev.gmarket.co.kr/ko/mo/Main"
     }
 }
 
 
 def _get_environment() -> str:
-    """config.json에서 현재 환경 반환 (dev/stg/prod)"""
+    """config.json에서 현재 환경 반환 (dev/stg/prod/elsa)"""
     config_path = Path(__file__).parent.parent / 'config.json'
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -48,7 +54,7 @@ def _get_environment_urls() -> Dict[str, str]:
     environment = _get_environment()
     
     if environment not in _URLS:
-        raise ValueError(f"지원하지 않는 환경입니다: {environment}. (dev/stg/prod)")
+        raise ValueError(f"지원하지 않는 환경입니다: {environment}. (dev/stg/prod/elsa)")
     
     return _URLS[environment]
 
