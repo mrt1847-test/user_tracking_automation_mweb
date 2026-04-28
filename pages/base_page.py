@@ -212,7 +212,68 @@ class BasePage:
             baseline_pe,
         )
         return False
-    
+
+    def wait_for_general_exposure_increase(
+        self,
+        tracker: Any,
+        baseline_count: Optional[int],
+        spm: Any = None,
+        timeout_s: float = 15.0,
+        poll_ms: int = 250,
+    ) -> bool:
+        """
+        General UI 노출(스크롤) 이후 General.Exposure.Event 적재가 baseline보다 늘어날 때까지 대기한다.
+
+        Args:
+            tracker: NetworkTracker (get_logs, get_general_exposure_logs_by_spm)
+            baseline_count: 스크롤 직전 시점의 건수(호출부에서 측정). None이면 대기 생략.
+            spm: module_config ``general_exposure``에서 추출한 SPM(문자열 또는 문자열 리스트).
+                 None이면 전체 General Exposure 건수만 비교한다.
+            timeout_s: 최대 대기 시간(초)
+            poll_ms: 폴링 간격(ms)
+
+        Returns:
+            증가를 감지하면 True, 타임아웃·tracker 없음이면 False
+        """
+        if tracker is None or baseline_count is None:
+            time.sleep(1)
+            return False
+
+        def current_ge_count() -> int:
+            if not spm:
+                return len(tracker.get_logs("General Exposure"))
+            if isinstance(spm, str):
+                return len(tracker.get_general_exposure_logs_by_spm(spm))
+            if isinstance(spm, list):
+                return sum(
+                    len(tracker.get_general_exposure_logs_by_spm(s))
+                    for s in spm
+                    if isinstance(s, str) and s
+                )
+            return len(tracker.get_logs("General Exposure"))
+
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            cur = current_ge_count()
+            if cur > baseline_count:
+                logger.info(
+                    "General Exposure 적재 증가 감지 (baseline=%d → 현재=%d, spm=%s)",
+                    baseline_count,
+                    cur,
+                    spm,
+                )
+                return True
+            self.page.wait_for_timeout(poll_ms)
+
+        logger.warning(
+            "%.0fs 안에 General Exposure가 baseline 대비 증가하지 않았습니다 (baseline=%d, spm=%s). "
+            "트래킹 지연·미발화 또는 SPM 불일치일 수 있습니다.",
+            timeout_s,
+            baseline_count,
+            spm,
+        )
+        return False
+
     def is_visible(self, selector: str, timeout: Optional[int] = None) -> bool:
         """
         요소가 보이는지 확인

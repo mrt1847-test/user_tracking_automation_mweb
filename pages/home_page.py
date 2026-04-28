@@ -432,3 +432,25 @@ class HomePage(BasePage):
 
         logger.info("모듈 visibility 진단: %s", out)
         return out
+
+    def get_button_by_name(self, module_title: str, module: Locator) -> Locator:
+        """
+        모듈 내 General 버튼/링크를 찾아 뷰포트로 스크롤한 뒤 Locator를 반환한다.
+        """
+        logger.debug(f"모듈 내 General 요소 찾기: {module_title}")
+        if module_title == "today_itemcarousel":
+            button = module.locator(".gds-heading__side-action").first
+        elif module_title == "today_newlowest":
+            button = module.locator(".gds-heading__side-action").first
+        elif module_title == "today_campaign":
+            button = module.locator(".gds-heading__side-action").first
+        elif module_title == "today_hmjfy0":
+            button = module.locator(".link__item-feed").first
+        else:
+            raise ValueError(f"모듈 내 General 요소 찾기 실패: {module_title}")
+
+        try:
+            button.scroll_into_view_if_needed(timeout=10000)
+        except Exception as e:
+            logger.warning("General 요소 scroll_into_view_if_needed 실패: %s", e)
+        return button

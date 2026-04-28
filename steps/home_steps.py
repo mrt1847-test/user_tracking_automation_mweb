@@ -4,10 +4,15 @@
 """
 import os
 from pathlib import Path
+from typing import Optional
 from pytest_bdd import given, when, then, parsers
 from pages.base_page import BasePage
 from pages.home_page import HomePage
-from utils.validation_helpers import detect_area_from_feature_path
+from utils.validation_helpers import (
+    detect_area_from_feature_path,
+    load_module_config,
+    _find_spm_recursive,
+)
 import logging
 import pytest
 import time
@@ -23,6 +28,10 @@ _MODULE_EXPOSURE_POLL_MS = 250
 # 홈 모듈 상품 클릭 전 Product Exposure 수신 대기 (goodscode만 매칭, SPM 미사용)
 _PRODUCT_EXPOSURE_WAIT_TIMEOUT_S = 15.0
 _PRODUCT_EXPOSURE_POLL_MS = 250
+
+# General 요소 클릭 전 General Exposure 적재 증가 대기
+_GENERAL_EXPOSURE_WAIT_TIMEOUT_S = 15.0
+_GENERAL_EXPOSURE_POLL_MS = 250
 
 
 @given("사용자가 G마켓 홈페이지에 접속한다")
@@ -427,12 +436,14 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
 
 
 @when(parsers.parse('홈에서 사용자가 "{n:d}"번째 "{module_title}" 모듈 내 General 요소를 클릭한다'))
-def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, module_title, bdd_context):
+def user_clicks_general_element_in_home_module(browser_session, n, module_title, bdd_context):
     """
-    홈 섹션 모듈 내 상품 노출 확인 후 클릭.
+    홈 섹션 모듈 내 General 링크/버튼 클릭.
     스텝 문구는 `홈에서`로 시작해 `steps.srp_lp_steps`의
-    `사용자가 "{module_title}" 모듈 내 …` 와 겹치지 않게 한다 (같은 문장이면 SRP 쪽이 나중 로드되어 덮어씀).
-    모듈은 `data-spm`(SPMC)로 `find_module_by_spmc`에 찾는다.
+    `사용자가 "{module_title}" 모듈 내 …` 와 겹치지 않게 한다.
+
+    네트워크 트래킹이 켜져 있으면 ``module_config``의 ``general_exposure`` SPM(없으면 전체 건수) 기준으로
+    스크롤 직전 대비 General Exposure 적재가 늘어날 때까지 짧게 폴링한 뒤 탭한다.
 
     실패 시에도 다음 스텝으로 진행
 
@@ -447,12 +458,48 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
         bdd_context.store["module_title"] = module_title
         bdd_context.store["module_order"] = int(n)
         home_page = HomePage(browser_session.page)
+        base_page = BasePage(browser_session.page)
+        tracker = bdd_context.get("tracker")
+
+        area = bdd_context.store.get("area") or bdd_context.get("area")
+        general_spm = None
+        if area and module_title:
+            try:
+                mc = load_module_config(area=area, module_title=module_title)
+                ge = mc.get("general_exposure") if isinstance(mc, dict) else None
+                if ge:
+                    general_spm = _find_spm_recursive(ge)
+            except Exception as ex:
+                logger.debug("general_exposure SPM 로드 실패(전체 General 건수로 대기): %s", ex)
+
+        def _general_exposure_baseline() -> Optional[int]:
+            if not tracker:
+                return None
+            if not general_spm:
+                return len(tracker.get_logs("General Exposure"))
+            if isinstance(general_spm, str):
+                return len(tracker.get_general_exposure_logs_by_spm(general_spm))
+            if isinstance(general_spm, list):
+                return sum(
+                    len(tracker.get_general_exposure_logs_by_spm(s))
+                    for s in general_spm
+                    if isinstance(s, str) and s
+                )
+            return len(tracker.get_logs("General Exposure"))
 
         # 모듈 찾기 (n은 1-based 입력이므로 0-based 인덱스로 변환)
         module = home_page.find_module_by_spmc(module_title, max(int(n) - 1, 0))
 
-        # 모듈 내 버튼 찾기
-        button = home_page.get_button_by_name(module_title,module)
+        baseline_ge = _general_exposure_baseline()
+        # 모듈 내 버튼으로 스크롤(노출 트리거) 후 General Exposure 적재 증가 대기
+        button = home_page.get_button_by_name(module_title, module)
+        base_page.wait_for_general_exposure_increase(
+            tracker=tracker,
+            baseline_count=baseline_ge,
+            spm=general_spm,
+            timeout_s=_GENERAL_EXPOSURE_WAIT_TIMEOUT_S,
+            poll_ms=_GENERAL_EXPOSURE_POLL_MS,
+        )
         button.tap(timeout=5000)
         logger.info('%s 모듈(%s번째) 내 General 요소 클릭 완료', module_title, n)
         try:
@@ -467,7 +514,7 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
             browser_session,
             bdd_context,
             str(e),
-            '홈에서 사용자가 "<n>"번째 "<module_title>" 모듈 내 <nth>번째 상품을 확인하고 클릭한다',
+            '홈에서 사용자가 "<n>"번째 "<module_title>" 모듈 내 General 요소를 클릭한다',
         )
         if 'module_title' not in bdd_context.store:
             bdd_context.store['module_title'] = module_title

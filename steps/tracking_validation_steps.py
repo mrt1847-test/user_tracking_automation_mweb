@@ -719,8 +719,9 @@ def then_pdp_rental_click_logs_should_pass_validation(tc_id, bdd_context):
 def then_save_all_tracking_logs_to_json(bdd_context):
     """
     모든 트래킹 로그를 JSON 파일로 저장.
-    이전 프론트 스텝이 소프트 실패해 goodscode 등이 없으면 예외를 던지지 않고 건너뜀
-    (이후 정합성 검증 스텝이 try/except로 동일 상황을 처리할 수 있도록 시나리오를 끊지 않음).
+    goodscode가 없어도 Module/General 등 SPM 기반 로그는 저장한다
+    (General 클릭·섹션 이동만 하는 시나리오). goodscode가 있으면 PDP·상품 이벤트도 포함한다.
+    tracker·module_title이 없을 때만 저장을 생략한다.
     """
     tracker = bdd_context.get("tracker")
     if not tracker:
@@ -729,13 +730,14 @@ def then_save_all_tracking_logs_to_json(bdd_context):
         )
         return
 
-    goodscode = bdd_context.get("goodscode")
+    goodscode = bdd_context.get("goodscode") or (
+        getattr(bdd_context, "store", None) and bdd_context.store.get("goodscode")
+    )
     if not goodscode:
-        logger.warning(
-            "트래킹 JSON 저장 생략: goodscode가 없습니다. "
-            "모듈 미노출·상품 미클릭 등 이전 프론트 스텝이 실패했을 수 있습니다."
+        logger.debug(
+            "goodscode 없음: PDP PV·Product 계열 로그는 JSON에 포함하지 않습니다. "
+            "(General 전용·섹션 이동만 등 정상 케이스일 수 있음)"
         )
-        return
 
     module_title = bdd_context.get("module_title")
     if not module_title:
@@ -748,7 +750,9 @@ def then_save_all_tracking_logs_to_json(bdd_context):
         getattr(bdd_context, "store", None) and bdd_context.store.get("nth")
     )
     try:
-        _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=nth)
+        _save_tracking_logs(
+            bdd_context, tracker, goodscode or None, module_title, nth=nth
+        )
     except Exception as e:
         logger.error(
             "트래킹 JSON 저장 중 오류 (다음 스텝은 계속 진행): %s",
@@ -769,7 +773,10 @@ def then_all_validations_completed(bdd_context):
 
 
 def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None):
-    """트래킹 로그를 JSON 파일로 저장 (tracking_all만 저장). nth가 있으면 tracking_all_모듈명(nth).json"""
+    """
+    트래킹 로그를 JSON 파일로 저장 (tracking_all만 저장). nth가 있으면 tracking_all_모듈명(nth).json
+    goodscode가 없으면 PV·Module Exposure·General 등만 포함하고, PDP PV·Product·PDP 클릭 계열은 생략한다.
+    """
     try:
         # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         area = bdd_context.get('area')
@@ -794,6 +801,7 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None)
                 general_click_spm = _find_spm_recursive(general_click)
 
         module_safe = module_title_to_filename(module_title)
+        effective_goodscode = ("" if goodscode is None else str(goodscode)).strip()
 
         # 각 이벤트 타입별 로그 저장 (주석 처리: tracking_all만 저장하도록 함)
         # event_configs = [
@@ -863,18 +871,29 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None)
         else:
             all_logs.extend(tracker.get_logs('Module Exposure'))
             logger.warning(f"모듈 '{module_title}'의 SPM 값이 없어 전체 Module Exposure 로그를 사용합니다.")
-        
-        all_logs.extend(tracker.get_pdp_pv_logs_by_goodscode(goodscode))
-        if isinstance(module_spm, str) and module_spm:
-            product_exposure_logs = tracker.get_product_exposure_logs_by_goodscode(goodscode, module_spm)
-        elif isinstance(module_spm, list):
-            product_exposure_logs = []
-            for spm in module_spm:
-                product_exposure_logs.extend(tracker.get_product_exposure_logs_by_goodscode(goodscode, spm))
+
+        if effective_goodscode:
+            all_logs.extend(tracker.get_pdp_pv_logs_by_goodscode(effective_goodscode))
+            if isinstance(module_spm, str) and module_spm:
+                product_exposure_logs = tracker.get_product_exposure_logs_by_goodscode(
+                    effective_goodscode, module_spm
+                )
+            elif isinstance(module_spm, list):
+                product_exposure_logs = []
+                for spm in module_spm:
+                    product_exposure_logs.extend(
+                        tracker.get_product_exposure_logs_by_goodscode(effective_goodscode, spm)
+                    )
+            else:
+                product_exposure_logs = tracker.get_product_exposure_logs_by_goodscode(
+                    effective_goodscode
+                )
+            all_logs.extend(product_exposure_logs)
+            all_logs.extend(tracker.get_product_click_logs_by_goodscode(effective_goodscode))
         else:
-            product_exposure_logs = tracker.get_product_exposure_logs_by_goodscode(goodscode)
-        all_logs.extend(product_exposure_logs)
-        all_logs.extend(tracker.get_product_click_logs_by_goodscode(goodscode))
+            logger.debug(
+                "goodscode 없음: PDP PV·Product Exposure·Product Click 로그는 tracking_all에 포함하지 않음"
+            )
 
         if isinstance(general_exposure_spm, str) and general_exposure_spm:
             general_exposure_logs = tracker.get_general_exposure_logs_by_spm(general_exposure_spm)
@@ -906,14 +925,15 @@ def _save_tracking_logs(bdd_context, tracker, goodscode, module_title, nth=None)
             all_logs.extend(general_click_logs)
             logger.warning(f"모듈 '{module_title}'의 general_click SPM 값이 없어 전체 General Click 로그를 사용합니다.")
 
-        all_logs.extend(tracker.get_product_atc_click_logs_by_goodscode(goodscode))
-        all_logs.extend(tracker.get_product_minidetail_logs_by_goodscode(goodscode))
-        all_logs.extend(tracker.get_pdp_buynow_click_logs_by_goodscode(goodscode))
-        all_logs.extend(tracker.get_pdp_atc_click_logs_by_goodscode(goodscode))
-        all_logs.extend(tracker.get_pdp_gift_click_logs_by_goodscode(goodscode))
-        all_logs.extend(tracker.get_pdp_join_click_logs_by_goodscode(goodscode))
-        all_logs.extend(tracker.get_pdp_rental_click_logs_by_goodscode(goodscode))
-        
+        if effective_goodscode:
+            all_logs.extend(tracker.get_product_atc_click_logs_by_goodscode(effective_goodscode))
+            all_logs.extend(tracker.get_product_minidetail_logs_by_goodscode(effective_goodscode))
+            all_logs.extend(tracker.get_pdp_buynow_click_logs_by_goodscode(effective_goodscode))
+            all_logs.extend(tracker.get_pdp_atc_click_logs_by_goodscode(effective_goodscode))
+            all_logs.extend(tracker.get_pdp_gift_click_logs_by_goodscode(effective_goodscode))
+            all_logs.extend(tracker.get_pdp_join_click_logs_by_goodscode(effective_goodscode))
+            all_logs.extend(tracker.get_pdp_rental_click_logs_by_goodscode(effective_goodscode))
+
         if len(all_logs) > 0:
             if nth is not None and str(nth).strip() != '':
                 all_filepath = Path(f'json/tracking_all_{module_safe}({nth}).json')

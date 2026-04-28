@@ -1058,9 +1058,24 @@ class NetworkTracker:
         # 우선 경로에서 못 찾았으면 재귀적으로 탐색
         return self._find_spm_recursive(payload)
     
+    @staticmethod
+    def _normalize_spm_for_banner_match(spm: str) -> str:
+        """
+        SPM 문자열에 ``banner``(대소문자 무관)가 포함되면, 문자열 맨끝의 연속 숫자를 제거한다.
+        ``dtab0_banner40`` ↔ ``dtab0_banner`` / ``dtab0_banner19`` 비교 시 동일 슬롯으로 본다.
+        """
+        if not spm or not isinstance(spm, str):
+            return spm if isinstance(spm, str) else ''
+        if 'banner' not in spm.lower():
+            return spm
+        return re.sub(r'\d+$', '', spm)
+    
     def _check_spm_match(self, log_spm: str, target_spm: str) -> bool:
         """
         두 spm 값이 매칭되는지 확인 (양방향 접두사 매칭)
+        
+        ``banner`` 이 포함된 SPM은 맨끝 연속 숫자를 제거한 뒤 비교한다
+        (예: ``...dtab0_banner40`` 과 ``...dtab0_banner`` 는 매칭).
         
         Args:
             log_spm: 로그에서 추출한 spm 값
@@ -1074,6 +1089,11 @@ class NetworkTracker:
             - "gmktpc.searchlist.cpc"와 "gmktpc.searchlist.prime" -> False
             - "gmktpc.searchlist.prime"와 "gmktpc.searchlist.cpc" -> False
         """
+        if not log_spm or not target_spm:
+            return False
+        
+        log_spm = self._normalize_spm_for_banner_match(str(log_spm))
+        target_spm = self._normalize_spm_for_banner_match(str(target_spm))
         if not log_spm or not target_spm:
             return False
         
@@ -1608,7 +1628,7 @@ class NetworkTracker:
                 else:
                     field_passed = True
             else:
-                # 포함 여부 매칭이 필요한 필드들 (spm은 제외: 정확 비교)
+                # 포함 여부 매칭이 필요한 필드들 (spm 키는 아래 전용 분기에서 비교)
                 contains_match_fields = {'spm-url', 'spm-pre', 'spm-cnt'}
                 
                 if key in contains_match_fields and isinstance(expected_value, str) and isinstance(actual_value, str):
@@ -1656,6 +1676,21 @@ class NetworkTracker:
                 elif key in {'query'} and isinstance(expected_value, str) and isinstance(actual_value, str):
                     # query 등: 대소문자 구분 없이 비교
                     if str(expected_value).strip().lower() == str(actual_value).strip().lower():
+                        field_passed = True
+                    else:
+                        errors.append(
+                            f"키 '{key}'의 값이 일치하지 않습니다. "
+                            f"기대값: {expected_value}, 실제값: {actual_value}"
+                        )
+                elif key == 'spm':
+                    # spm: banner 포함 시 맨끝 연속 숫자 제거 후 동등 비교 (로그 SPM 필터 _check_spm_match와 동일 규칙)
+                    exp_n = self._normalize_spm_for_banner_match(
+                        str(expected_value) if expected_value is not None else ''
+                    )
+                    act_n = self._normalize_spm_for_banner_match(
+                        str(actual_value) if actual_value is not None else ''
+                    )
+                    if exp_n == act_n:
                         field_passed = True
                     else:
                         errors.append(
