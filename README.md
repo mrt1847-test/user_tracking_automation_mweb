@@ -227,6 +227,7 @@ pipenv run pytest test/prod/ -v 2>&1 | tee pytest.log
 ```powershell
 # Windows PowerShell (`Tee-Object`: 화면 + 파일, `*>&1` 로 stdout/stderr 모두 전달)
 pipenv run pytest test/prod/ -v *>&1 | Tee-Object -FilePath pytest.log
+pipenv run pytest --cache-clear test/dev/test_kotlin.py -v *>&1 | Tee-Object -FilePath pytest_kotlin.log
 ```
 
 ## ⚙️ 설정 파일
