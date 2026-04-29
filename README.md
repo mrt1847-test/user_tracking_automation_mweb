@@ -168,11 +168,23 @@ pipenv run playwright install
 
 ### 실행 전 `.env` 설정
 
-테스트 실행 전 프로젝트 루트에 `.env` 파일이 필요합니다.
+테스트 실행 전 **프로젝트 루트**에 `.env` 파일을 두고, 아래 **변수 이름만** 맞춰 값을 채웁니다. 저장소에는 실 계정·비밀번호를 넣지 마세요.
 
-- 로그인 계정 키(필수): `NORMAL_MEMBER_ID`, `NORMAL_MEMBER_PASSWORD`, `CLUB_MEMBER_ID`, `CLUB_MEMBER_PASSWORD`, `BUSINESS_MEMBER_ID`, `BUSINESS_MEMBER_PASSWORD`
-- `config.json`의 `environment`가 `dev`이면 `DEV_` 접두 키를 사용합니다(예: `DEV_NORMAL_MEMBER_ID`, `DEV_NORMAL_MEMBER_PASSWORD`)
-- TestRail 연동(`testrail_report = "Y"`) 시: `TESTRAIL_USERNAME`, `TESTRAIL_PASSWORD` 추가 필요
+**양식 예시** (값은 본인/팀 내부 정보로 교체):
+
+```env
+# TestRail (config.json에서 testrail_report = "Y" 일 때)
+TESTRAIL_USERNAME=<TestRail_로그인_ID_또는_이메일>
+TESTRAIL_PASSWORD=<TestRail_API_또는_비밀번호>
+
+# 일반 회원 (prod·stg 등 기본 로그인 시나리오)
+NORMAL_MEMBER_ID=<회원_ID>
+NORMAL_MEMBER_PASSWORD=<회원_비밀번호>
+
+# dev 전용 일반 회원 (config.json의 environment가 dev일 때 DEV_ 접두 키 우선 사용)
+DEV_NORMAL_MEMBER_ID=<dev_회원_ID>
+DEV_NORMAL_MEMBER_PASSWORD=<dev_회원_비밀번호>
+```
 
 #### pip 사용
 
