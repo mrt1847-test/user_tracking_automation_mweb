@@ -1,6 +1,6 @@
 {
   "module_exposure": {
-    "spm": "gmktm.home.today_hmjfy0",
+    "spm": "gmktm.home.today_hmjfy1",
     "spm-cnt": "gmktm.home.0.0",
     "spm-url": "",
     "spm-pre": "",
@@ -18,7 +18,7 @@
     "ab_buckets": "skip"
   },
   "product_exposure": {
-    "spm": "gmktm.home.today_hmjfy0.dtab0_item0",
+    "spm": "gmktm.home.today_hmjfy1.dtab0_item0",
     "spm-cnt": "gmktm.home.0.0",
     "spm-url": "",
     "spm-pre": "",
@@ -77,7 +77,7 @@
     }
   },
   "product_click": {
-    "spm": "gmktm.home.today_hmjfy0.dtab0_item0",
+    "spm": "gmktm.home.today_hmjfy1.dtab0_item0",
     "spm-cnt": "gmktm.home.0.0",
     "spm-url": "",
     "spm-pre": "",
@@ -196,7 +196,7 @@
     }
   },
   "general_exposure": {
-    "spm": "gmktm.home.today_hmjfy0.dtab0_banner",
+    "spm": "gmktm.home.today_hmjfy1.dtab0_banner",
     "spm-cnt": "gmktm.home.0.0",
     "spm-url": "skip",
     "spm-pre": "skip",
@@ -211,7 +211,7 @@
     "ab_buckets": "skip"
   },
   "general_click": {
-    "spm": "gmktm.home.today_hmjfy0.dtab0_banner",
+    "spm": "gmktm.home.today_hmjfy1.dtab0_banner",
     "spm-cnt": "gmktm.home.0.0",
     "spm-url": "skip",
     "spm-pre": "skip",
