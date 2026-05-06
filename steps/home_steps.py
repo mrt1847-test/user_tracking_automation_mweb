@@ -358,6 +358,10 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
 
     실패 시에도 다음 스텝으로 진행
 
+    섹션 탭 클릭 직후(`navigate_to_section`)에 저장한 Module Exposure 건수를 baseline으로 두고,
+    `페이지 로딩 대기` 스텝 없이도 노출 로그가 늘어날 때까지 짧게 폴링한다
+    (`BasePage.wait_for_module_exposure_increase`와 동일 계약).
+
     Args:
         browser_session: BrowserSession 객체 (page 참조 관리)
         n: 모듈 순번(1-based)
@@ -369,17 +373,25 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
         bdd_context.store["module_title"] = module_title
         bdd_context.store["module_order"] = int(n)
         bdd_context.store['nth'] = int(nth)
+        tracker = bdd_context.get("tracker")
+        baseline = bdd_context.store.get("_module_exposure_count_after_section_click")
         home_page = HomePage(browser_session.page)
+        home_page.wait_for_module_exposure_increase(
+            tracker=tracker,
+            baseline_count=baseline,
+            timeout_s=_MODULE_EXPOSURE_WAIT_TIMEOUT_S,
+            poll_ms=_MODULE_EXPOSURE_POLL_MS,
+        )
 
         # 모듈 찾기 (n은 1-based 입력이므로 0-based 인덱스로 변환)
         module = home_page.find_module_by_spmc(module_title, max(int(n) - 1, 0))
 
         # 모듈 내 상품 찾기
         nth_idx = max(int(nth) - 1, 0)
-        products = module.locator('a[data-montelena-goodscode][href*="product"]')
+        products = module.locator('a[data-montelena-goodscode][href*="gmarket.co.kr"]')
         if products.count() <= nth_idx:
             parent = home_page.get_module_parent(module, 3)
-            products = parent.locator('a[data-montelena-goodscode][href*="product"]')
+            products = parent.locator('a[data-montelena-goodscode][href*="gmarket.co.kr"]')
 
         if products.count() <= nth_idx:
             raise AssertionError(
@@ -397,7 +409,6 @@ def user_confirms_and_clicks_product_in_module_by_spmc(browser_session, n, modul
             raise AssertionError("상품 goodscode를 찾을 수 없습니다.")
 
         # 상품 클릭 전: 네트워크 트래킹이 있으면 goodscode 기준 Product Exposure 적재 확인
-        tracker = bdd_context.get("tracker")
         base_page = BasePage(browser_session.page)
         base_page.wait_for_product_exposure_by_goodscode(
             tracker=tracker,
