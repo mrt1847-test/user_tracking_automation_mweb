@@ -1,7 +1,7 @@
 """
 로그인 계정 정보 관리
 .env 파일에서 회원 종류별 계정 정보를 읽어옴
-config.json의 환경 설정에 따라 dev와 stg/prod로 분기
+config.json의 환경 설정에 따라 dev/elsa와 stg/prod로 분기
 """
 import os
 import json
@@ -32,7 +32,7 @@ def _load_config() -> Dict:
 
 
 def _get_environment() -> str:
-    """config.json에서 현재 환경 반환 (dev/stg/prod)"""
+    """config.json에서 현재 환경 반환 (dev/stg/prod/elsa)"""
     config = _load_config()
     return config.get('environment', 'prod')
 
@@ -42,24 +42,24 @@ def _get_env_prefix() -> str:
     환경에 따른 환경 변수 접두사 반환
     
     Returns:
-        dev: "DEV_"
+        dev/elsa: "DEV_" (elsa는 mweb dev 계열 URL·계정과 동일하게 사용)
         stg/prod: "" (접두사 없음)
     """
     environment = _get_environment()
     
     # stg/prod는 하나의 분기로 처리 (접두사 없음)
-    if environment == 'dev':
+    if environment in ('dev', 'elsa'):
         return "DEV_"
     elif environment in ['stg', 'prod']:
         return ""
     else:
-        raise ValueError(f"지원하지 않는 환경입니다: {environment}. (dev/stg/prod)")
+        raise ValueError(f"지원하지 않는 환경입니다: {environment}. (dev/stg/prod/elsa)")
 
 
 def get_credentials(member_type: str) -> Dict[str, str]:
     """
     회원 종류별 계정 정보 반환
-    config.json의 환경 설정에 따라 dev와 stg/prod로 분기
+    config.json의 환경 설정에 따라 dev/elsa와 stg/prod로 분기
     
     Args:
         member_type: 회원 종류 (normal/club/business)

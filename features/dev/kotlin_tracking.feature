@@ -23,7 +23,9 @@ Feature: G마켓 Home 트래킹 로그 정합성 검증
       | 홈            | 1 | today_branddeal     | 1 | C1829142           | C1829143            | C1829144         | 
       | 홈            | 1 | today_hmjfy0        | 1 | C1829136           | C1829137            | C1829138         |
       | 홈            | 1 | today_campaign      | 1 | C1829148           | C1829149            | C1829150         | 
-
+      | 홈            | 1 | today_brandspecial  | 1 | C1829142           | C1829143            | C1829144         | 
+      | 슈퍼딜        | 1 | superdeal_campaign  | 1 | C1829148           | C1829149            | C1829150         | 
+  
   Scenario: 홈 섹션 모듈별 General 트래킹 로그 검증
     Given 네트워크 트래킹이 시작되었음
     Given G마켓 홈 페이지에 접속했음
@@ -39,9 +41,11 @@ Feature: G마켓 Home 트래킹 로그 정합성 검증
       | section_name  | n | module_title        | tc_general_exposure | tc_general_click | 
       | 홈            | 1 | today_itemcarousel  | C1829963            | C1829964        | 
       | 홈            | 1 | today_newlowest     | C1829965            | C1829966         | 
-      | 홈            | 1 | today_hmjfy0        | C1857258            | C1857274         |
+      | 홈            | 1 | today_hmjfy1        | C1857258            | C1857274         |
       | 홈            | 1 | today_campaign      | C1836147            | C1836284         | 
+      | 슈퍼딜         | 1 | superdeal_campaign  | C1836147            | C1836284         | 
 
+  
   
   Scenario: 홈 섹션 이동시 module exposure 트래킹 로그 검증
     Given 네트워크 트래킹이 시작되었음

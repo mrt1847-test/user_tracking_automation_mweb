@@ -12,7 +12,7 @@
     "section_index": "",
     "module_index": "mandatory",
     "channel_code": "200003514",
-    "ab_buckets": "skip"
+    "ab_buckets": ""
   },
   "product_exposure": {
     "spm": "gmktm.searchlist.cartitem.d0_0",
@@ -33,7 +33,7 @@
     "is_ad": "<is_ad>",
     "channel_code": "200003514",
     "item_status": "",
-    "ab_buckets": "skip",
+    "ab_buckets": "mandatory",
     "is_airticket": "N",
     "utLogMap": {
       "scene": "search",
@@ -49,7 +49,7 @@
       "searchScenario": "keyword",
       "query": "<검색어>",
       "pvid": "skip",
-      "pvid_sys": "gmarket server",
+      "pvid_sys": "aidc server",
       "search_session_id": "skip",
       "origin_price": "<원가>",
       "promotion_price": "<할인가>",
@@ -57,7 +57,7 @@
       "trafficType": "<trafficType>",
       "adProduct": "",
       "adSubProduct": "",
-      "seed_item_id": "",
+      "seed_item_id": "mandatory",
       "seed_item_index": "",
       "seed_item_keyword": "",
       "ab_buckets": "skip",
@@ -89,7 +89,7 @@
     "is_ad": "<is_ad>",
     "channel_code": "200003514",
     "item_status": "",
-    "ab_buckets": "skip",
+    "ab_buckets": "mandatory",
     "is_airticket": "N",
     "utLogMap": {
       "scene": "search",
@@ -105,7 +105,7 @@
       "searchScenario": "keyword",
       "query": "<검색어>",
       "pvid": "skip",
-      "pvid_sys": "gmarket server",
+      "pvid_sys": "aidc server",
       "search_session_id": "skip",
       "origin_price": "<원가>",
       "promotion_price": "<할인가>",
@@ -113,7 +113,7 @@
       "trafficType": "<trafficType>",
       "adProduct": "",
       "adSubProduct": "",
-      "seed_item_id": "",
+      "seed_item_id": "mandatory",
       "seed_item_index": "",
       "seed_item_keyword": "",
       "ab_buckets": "skip",
