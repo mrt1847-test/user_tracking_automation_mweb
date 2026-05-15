@@ -206,7 +206,7 @@
     ],
     "pguid": "mandatory",
     "sguid": "mandatory",
-    "gmkt_area_code": "200014095",
+    "gmkt_area_code": "200014096",
     "content": "skip",
     "ab_buckets": "skip"
   },
@@ -221,7 +221,7 @@
     ],
     "pguid": "mandatory",
     "sguid": "mandatory",
-    "gmkt_area_code": "200014095",
+    "gmkt_area_code": "200014096",
     "content": "skip",
     "ab_buckets": "skip"
   }

@@ -1,0 +1,30 @@
+{
+  "click": {
+    "type": "click",
+    "id": "mandatory",
+    "url": "mandatory",
+    "client_value": "mandatory",
+    "page_value": "mandatory",
+    "fph": "mandatory",
+    "areacode": "mandatory"
+  },
+  "pageView": {
+    "type": "pageView",
+    "id": "mandatory",
+    "url": "mandatory",
+    "client_value": "mandatory",
+    "page_value": "mandatory",
+    "fph": "mandatory"
+  },
+  "IMP": {
+    "type": "mandatory",
+    "id": "mandatory",
+    "url": "mandatory",
+    "client_value": "mandatory",
+    "page_value": "mandatory",
+    "area_value": "mandatory",
+    "areacode": "mandatory",
+    "fph": "mandatory",
+    "GOODSCODE": "mandatory"
+  }
+}

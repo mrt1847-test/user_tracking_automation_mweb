@@ -2,7 +2,7 @@
     "testrail_report": "Y",
     "testrail_run_name": "User Tracking Aoutomation Test-mweb {datetime}",
     "testrail_run_create": false,
-    "testrail_run_id": "63185",
+    "testrail_run_id": "63305",
     "testrail_close_run_on_finish": "N",
     "milestone_id": "",
     "project_id": "",
@@ -22,7 +22,7 @@
     },
     "tr_url": "http://172.30.2.20",
     "multiple_test_use": false,
-    "environment": "elsa",
+    "environment": "prod",
     "mobile_profile": "galaxy_s20",
     "spreadsheet_id": "1iv_ok0kTzWWPhzyRRbpEEnH3DPGE7VSJg2mmdlRPD78"
 }

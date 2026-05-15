@@ -18,6 +18,67 @@ from utils.validation_helpers import (
 logger = logging.getLogger(__name__)
 
 
+def _load_montelena_schema(event_type: str) -> dict:
+    schema_event_type = "pageView" if event_type.lower() in ("pageview", "pageviwe") else event_type
+    schema_dir = Path(__file__).resolve().parent.parent / "tracking_schemas" / "MONTELENA"
+    event_schema_path = schema_dir / f"{schema_event_type}.json"
+    template_path = schema_dir / "schema_template.json"
+
+    schema_path = event_schema_path if event_schema_path.exists() else template_path
+    if not schema_path.exists():
+        raise AssertionError(f"Montelena schema file was not found: {schema_path}")
+
+    with schema_path.open("r", encoding="utf-8") as file:
+        schema = json.load(file)
+
+    if event_schema_path.exists():
+        return schema
+
+    if schema_event_type in schema:
+        return schema[schema_event_type]
+
+    if schema_event_type.lower().startswith("imp") and "IMP" in schema:
+        return schema["IMP"]
+
+    raise AssertionError(f"Montelena schema for event type '{event_type}' was not found.")
+
+
+def _validate_montelena_event_logs(event_type: str, bdd_context, tc_id: str = ""):
+    tracker = bdd_context.get("montelena_tracker")
+    if not tracker:
+        raise AssertionError("Montelena tracker was not started. Use '몬텔레나 트래킹이 시작되었음'.")
+
+    logs = tracker.get_imp_logs() if event_type.lower().startswith("imp") else tracker.get_logs(event_type)
+    if not logs:
+        raise AssertionError(f"[TestRail TC: {tc_id}] Montelena {event_type} 로그가 수집되지 않았습니다.")
+
+    expected = _load_montelena_schema(event_type)
+    validation_errors = []
+    for log in logs:
+        try:
+            _, passed_fields = tracker.validate_payload(log, expected)
+            bdd_context["montelena_validation_passed_fields"] = passed_fields
+            logger.info("Montelena %s 로그 정합성 검증 성공", event_type)
+            return
+        except AssertionError as exc:
+            validation_errors.append(str(exc))
+
+    raise AssertionError(
+        f"[TestRail TC: {tc_id}] Montelena {event_type} 로그 정합성 검증 실패:\n"
+        + "\n\n".join(validation_errors)
+    )
+
+
+@then(parsers.parse('몬텔레나 "{event_type}" 로그가 정합성 검증을 통과해야 함'))
+def then_montelena_event_log_should_pass_validation(event_type, bdd_context):
+    _validate_montelena_event_logs(event_type, bdd_context)
+
+
+@then(parsers.re(r'몬텔레나 "(?P<event_type>.*)" 로그가 정합성 검증을 통과해야 함 \(TC: (?P<tc_id>.*)\)'))
+def then_montelena_event_log_should_pass_validation_with_tc(event_type, tc_id, bdd_context):
+    _validate_montelena_event_logs(event_type, bdd_context, tc_id)
+
+
 def _check_and_validate_event_logs(
     tc_id: str,
     event_type: str,
